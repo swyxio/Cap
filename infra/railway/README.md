@@ -3,7 +3,7 @@
 This checkout deploys Cap independently of Reclip. Upstream base:
 `CapSoftware/Cap@716d2e883759ef5f92fa613a0566e4c09858af83`.
 
-- App: https://cap-web-production-d6ca.up.railway.app/login
+- App: https://cap.swyx.io/login
 - Project: https://railway.com/project/7a9607fb-97d3-4c18-a217-72c31e5c6a97
 - Workspace: swyx's Projects; production environment.
 - Local source: `/Users/swyx/Work/cap`, branch `main`.
@@ -11,13 +11,32 @@ This checkout deploys Cap independently of Reclip. Upstream base:
 
 ## Use
 
-Sign in with an `ai.engineer` or `smol.ai` email. Codes come from
+Sign in with `shawnthe1@gmail.com`, or an `ai.engineer` or `smol.ai` email.
+Only that exact Gmail address is allowlisted, not all Gmail accounts. Codes come from
 `auth@smol.ai` through the existing verified Resend sender. There is no shared
 password. New recordings are private by default; sharing is an explicit choice.
 
 In Cap Desktop, open Settings → General → Self-host → Cap Server URL, set
-`https://cap-web-production-d6ca.up.railway.app`, then sign in to this instance.
+`https://cap.swyx.io`, then sign in to this instance.
 Desktop capture itself is distinct from the server-side integration tests.
+
+## Domain routing
+
+`cap.swyx.io` is the canonical app origin. Cloudflare DNS has a DNS-only CNAME
+`cap` → `g96f7lej.up.railway.app` and the Railway ownership TXT record at
+`_railway-verify.cap`. Railway custom domain
+`785ca17a-5d86-4113-b1a2-d3905611fb6e` targets port 8080 and owns the TLS certificate.
+
+Cloudflare Single Redirect rule `01d40397c69542bb9dcd60129ab59fd2` ("Cap tool
+shortcut") sends only `swyx.io/tools/cap` and `swyx.io/tools/cap/` to
+`https://cap.swyx.io/` with status 301 and query-string preservation. It does not
+proxy Cap under a subdirectory. This rule is configured in the zone dashboard;
+no swyxdotio Worker release or unrelated website changes are needed.
+
+Both build-time and runtime `WEB_URL`, `NEXTAUTH_URL`, and
+`NEXT_PUBLIC_WEB_URL` use `https://cap.swyx.io`. The original Railway hostname is
+still available, but new desktop configurations should use the canonical origin.
+Gmail login uses an emailed code, not Google OAuth.
 
 ## Services
 
@@ -64,7 +83,7 @@ S3_PUBLIC_ENDPOINT=${{recordings.ENDPOINT}}
 S3_INTERNAL_ENDPOINT=${{recordings.ENDPOINT}}
 S3_PATH_STYLE=false
 CAP_VIDEOS_DEFAULT_PUBLIC=false
-CAP_ALLOWED_SIGNUP_DOMAINS=ai.engineer,smol.ai
+CAP_ALLOWED_SIGNUP_DOMAINS=ai.engineer,smol.ai,shawnthe1@gmail.com
 RESEND_FROM_DOMAIN=smol.ai
 ```
 
@@ -72,7 +91,8 @@ Use the explicit `cap-web` reference in the callback URL: an unqualified
 `${{RAILWAY_PRIVATE_DOMAIN}}` did not resolve in our first deployed configuration.
 No AI transcription or generation keys are enabled.
 
-The bucket CORS allowlist contains only the app origin, methods GET/HEAD/PUT/POST,
+The bucket CORS allowlist contains `https://cap.swyx.io` and the original Railway
+app origin, methods GET/HEAD/PUT/POST,
 all request headers, and exposed ETag/Content-Length/Content-Range/Accept-Ranges.
 When changing domains, update CORS, runtime URL variables, and the public build
 URL in `Dockerfile.web`, then rebuild.
@@ -97,6 +117,9 @@ Next's standalone tracing otherwise omitted transitive workflow dependencies.
 Image construction verifies both the runtime and bootstrap imports plus nginx
 configuration before publishing. The existing upstream build skips typechecking;
 a successful image build is not proof of a clean repository-wide typecheck.
+The unchanged CommonJS PostCSS config uses a `.cjs` extension to avoid the
+Next 16.3 Turbopack async config-loader regression reported in
+https://github.com/vercel/next.js/issues/96619.
 
 `railway restart --service cap-web --yes` restarts without rebuilding.
 `railway redeploy` can rebuild this uploaded-source deployment.

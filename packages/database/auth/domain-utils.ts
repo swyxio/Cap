@@ -4,7 +4,6 @@ export function isEmailAllowedForSignup(
 	email: string,
 	allowedDomainsConfig?: string,
 ): boolean {
-	// If no domain restrictions are configured, allow all signups
 	if (!allowedDomainsConfig || allowedDomainsConfig.trim() === "") {
 		return true;
 	}
@@ -14,8 +13,16 @@ export function isEmailAllowedForSignup(
 		return false;
 	}
 
-	const allowedDomains = parseAllowedDomains(allowedDomainsConfig);
-	return allowedDomains.includes(emailDomain.toLowerCase());
+	const normalizedEmail = email.toLowerCase();
+	const normalizedDomain = emailDomain.toLowerCase();
+	return allowedDomainsConfig
+		.split(",")
+		.map((entry) => entry.trim().toLowerCase())
+		.some(
+			(entry) =>
+				entry === normalizedEmail ||
+				(isValidDomain(entry) && entry === normalizedDomain),
+		);
 }
 
 function extractDomainFromEmail(email: string): string | null {
@@ -28,13 +35,6 @@ function extractDomainFromEmail(email: string): string | null {
 	// Extract domain from validated email
 	const atIndex = email.lastIndexOf("@");
 	return atIndex !== -1 ? email.substring(atIndex + 1) : null;
-}
-
-function parseAllowedDomains(allowedDomainsConfig: string): string[] {
-	return allowedDomainsConfig
-		.split(",")
-		.map((domain) => domain.trim().toLowerCase())
-		.filter((domain) => domain.length > 0 && isValidDomain(domain));
 }
 
 function isValidDomain(domain: string): boolean {

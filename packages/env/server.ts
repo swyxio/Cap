@@ -86,7 +86,9 @@ function createServerEnv() {
 			CAP_ALLOWED_SIGNUP_DOMAINS: z
 				.string()
 				.optional()
-				.describe("Comma-separated list of permitted signup domains"),
+				.describe(
+					"Comma-separated signup allowlist of domains or exact email addresses. Email matching is case-insensitive and does not expand aliases.",
+				),
 
 			/// AI providers
 			ASSEMBLY_API_KEY: z.string().optional().describe("Audio transcription"),

@@ -4,9 +4,9 @@ WORKDIR /app
 COPY . .
 RUN pnpm install --frozen-lockfile --filter @cap/web...
 ENV NEXT_PUBLIC_DOCKER_BUILD=true \
-	NEXT_PUBLIC_WEB_URL=https://cap-web-production-d6ca.up.railway.app \
-	WEB_URL=https://cap-web-production-d6ca.up.railway.app \
-	NEXTAUTH_URL=https://cap-web-production-d6ca.up.railway.app \
+	NEXT_PUBLIC_WEB_URL=https://cap.swyx.io \
+	WEB_URL=https://cap.swyx.io \
+	NEXTAUTH_URL=https://cap.swyx.io \
 	NEXTAUTH_SECRET=build-only-not-a-runtime-secret \
 	DATABASE_URL=mysql://build:build@127.0.0.1:3306/build \
 	CAP_AWS_BUCKET=build \

@@ -1,4 +1,5 @@
 import { authOptions } from "@cap/database/auth/auth-options";
+import { isEmailAllowedForSignup } from "@cap/database/auth/domain-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const env = vi.hoisted(() => ({
@@ -52,4 +53,61 @@ describe("authOptions", () => {
 			10 * 60,
 		);
 	});
+});
+
+describe("signup allowlist", () => {
+	const allowlist = "ai.engineer,smol.ai,shawnthe1@gmail.com";
+
+	it.each([
+		"someone@ai.engineer",
+		"someone@smol.ai",
+		"shawnthe1@gmail.com",
+		"SHAWNTHE1@GMAIL.COM",
+	])("allows the configured domain or exact address: %s", (email) => {
+		expect(isEmailAllowedForSignup(email, allowlist)).toBe(true);
+	});
+
+	it.each([
+		"someone@gmail.com",
+		"shawnthe1+test@gmail.com",
+		"shawn.the1@gmail.com",
+		"othershawnthe1@gmail.com",
+		"shawnthe1@gmail.com.example.org",
+		"someone@sub.ai.engineer",
+		"someone@notai.engineer",
+		"not-an-email",
+	])("does not expand exact entries or accept malformed input: %s", (email) => {
+		expect(isEmailAllowedForSignup(email, allowlist)).toBe(false);
+	});
+
+	it("normalizes allowlist case and surrounding whitespace", () => {
+		expect(
+			isEmailAllowedForSignup(
+				"shawnthe1@gmail.com",
+				" AI.ENGINEER, SMOL.AI, SHAWNTHE1@GMAIL.COM , ",
+			),
+		).toBe(true);
+	});
+
+	it("supports an exact-email-only allowlist", () => {
+		expect(
+			isEmailAllowedForSignup("shawnthe1@gmail.com", "shawnthe1@gmail.com"),
+		).toBe(true);
+		expect(
+			isEmailAllowedForSignup("someone@gmail.com", "shawnthe1@gmail.com"),
+		).toBe(false);
+	});
+
+	it("fails closed for a configured list with no matching valid entries", () => {
+		expect(
+			isEmailAllowedForSignup("shawnthe1@gmail.com", "invalid, @gmail.com, ,"),
+		).toBe(false);
+	});
+
+	it.each([undefined, "", "   "])(
+		"keeps unrestricted signup when no allowlist is configured: %s",
+		(config) => {
+			expect(isEmailAllowedForSignup("someone@example.org", config)).toBe(true);
+		},
+	);
 });
