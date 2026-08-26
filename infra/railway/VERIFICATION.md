@@ -1,5 +1,32 @@
 # Deployment verification — 2026-08-26
 
+## Custom domain and Gmail cutover
+
+Application changes: `5256482a12778c42d6c6bdeb674441ef0edf31a7`.
+Active web deployment: `62434e48-3485-4416-a954-aaec84f27ae4`.
+Image: `sha256:ba60c857ca9f5a8d5637653685c4b8f8a67dc6aa03ebbc814c22d4116b8a13b3`.
+
+- Railway reports the custom domain verified, its TLS certificate valid, and the
+  service healthy. `https://cap.swyx.io/login` returns 200.
+- `https://swyx.io/tools/cap` and its trailing-slash variant return 301 to
+  `https://cap.swyx.io/`; query parameters are preserved. `/tools/captain` remains
+  404. The homepage and Reclip shortcut still behave as before.
+- Chrome followed the shortcut to the Cap sign-in page on `cap.swyx.io`.
+- Live auth provider callback URLs use the canonical origin. A real sign-in
+  request for `shawnthe1@gmail.com` was accepted and a verification email was
+  submitted through Resend. The OTP was not read or consumed. A synthetic
+  unapproved address was denied without sending mail.
+- 29 focused tests passed, including exact-email matching and rejection of
+  other Gmail addresses, aliases, and lookalike domains.
+- A clean local production build and the Railway image build passed after
+  renaming the unchanged PostCSS configuration to `.cjs`. This avoids the
+  Next 16.3 async config-loader regression without changing dependencies.
+- S3 upload preflight accepts the new origin and rejects an unrelated origin.
+  Public workflow endpoints remain blocked (404).
+- No swyxdotio source files or unrelated working changes were modified.
+
+## Initial deployment
+
 Application code/configuration: `1bad4dba3d651c7dbf4096fa854f1a1eb00011be`.
 The image was built from the corresponding working tree before this commit;
 the runbook and this receipt do not change runtime code.
