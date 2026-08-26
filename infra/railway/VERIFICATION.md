@@ -1,5 +1,49 @@
 # Deployment verification — 2026-08-26
 
+## Owner-only God view
+
+Application commit: `68fb8de`.
+Web deployment: `23fb3e60-6ae6-4017-bee6-957f6be2de7a`.
+Image: `sha256:37e7c1dd4aaa17128d18409ffae7d0555ee1d3c89053acb9e5e8adc56914d30f`.
+Railway independently reports `SUCCESS`.
+
+- `/dashboard/god` is linked in the exact operator accounts' sidebar. The page,
+  recording detail loader, and storage action require authenticated Gmail-owner
+  or Cognition-owner access on this enabled self-hosted instance. Trusted email
+  domains and organization roles alone do not qualify.
+- Chrome loaded the production view under the existing authenticated Gmail
+  session: 2 accounts, 0/100 public slots, 1 private video, 0 screenshots, and
+  approximately 9 seconds of known duration. Both users appear, including the
+  zero-recording account. All organizations are available as filters.
+- The actual storage action completed: approximately 3.6 MiB across 17 objects
+  in the default bucket, with zero recordings assigned to excluded storage.
+  This is an on-demand object inventory, not provider billing, watch analytics,
+  or a backup. Custom storage and incomplete multipart uploads are excluded.
+- Chrome loaded the existing private recording in God view, exercised its native
+  play control, and observed playback end at 8.698889 seconds, `readyState=4`,
+  with no media error. No recording, sharing flag, or organization was changed.
+- An actual search returned zero matches with the empty-state explanation, while
+  instance totals remained unchanged. Reset restored the full view.
+- Anonymous HTTP requests to the overview and recording detail redirected to
+  login without account data, recording titles, or signed media URLs. The same
+  private recording's playlist API returned 401 without authentication.
+- All 178 focused tests across 10 files pass: operator authorization and DTO
+  projection, filtering/pagination, zero-use users and unknown durations,
+  storage coverage/failure handling, private-video policy, normal download/role
+  permissions, organization setup, signup quotas, and recording quotas.
+  Cross-user operator access and denial of trusted-domain/lookalike accounts
+  were verified in policy tests, not a new production non-owner login.
+- Scoped Biome checks pass for all 19 changed TS/TSX/JSON files. The local and
+  Railway production builds pass. The focused web typecheck still has the same
+  18 diagnostics in untouched/shared modules; no clean full-repository typecheck
+  is claimed. Desktop Chrome was inspected; phone-width visual verification was
+  not performed in this run.
+- This is a read-only release: no schema migration, new credentials, production
+  test records, account suspension controls, or content-deletion capability.
+  The existing video read policy now allows the two operators to read private
+  media; ownership checks for mutation are unchanged. No other services were
+  redeployed. Source is pushed to fork `main`.
+
 ## Public quotas and domain organizations
 
 Application commits: `8c6c686` (policy and organizations), `1ceea59` (logo storage
