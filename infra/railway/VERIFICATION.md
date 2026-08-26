@@ -1,5 +1,63 @@
 # Deployment verification — 2026-08-26
 
+## Public quotas and domain organizations
+
+Application commits: `8c6c686` (policy and organizations), `1ceea59` (logo storage
+and quota display). Final web deployment: `21385a74-8d0d-4769-84f4-bbfffd2af055`.
+Image: `sha256:f3f5128a8472de03178dbc1026a35a4d4174c6abb80b9562b86f9cde240bb3fe`.
+Railway independently reports `SUCCESS`; the `/login` healthcheck passed.
+
+- Runtime settings read back: trusted domains `ai.engineer`, `latent.space`,
+  `smol.ai`; exact exceptions `shawnthe1@gmail.com`, `swyx@cognition.ai`;
+  public account limit 100; public stored-recording limit 25; domain organization
+  setup enabled. The limits exclude whitelisted users. Deletion frees a recording
+  slot; screenshot rows also count. Existing accounts can still log in when the
+  public signup pool is full.
+- AIE (`swyx-aie`), Latent Space (`swyx-latent`), and Smol (`swyx-smol`) exist in
+  production. Gmail is owner of all three. The existing `swyx@ai.engineer` account
+  was enrolled in AIE as a member. New domain users join only their matching
+  organization; other public users do not join these teams.
+- `swyx@cognition.ai` is whitelisted and gets admin membership in all three on
+  authenticated sign-in. That account has not yet completed a fresh successful
+  login in this verification run; no unverified account was precreated.
+- Authenticated Chrome loaded all three official organization logos with nonzero
+  natural image dimensions. Each organization's Members page showed Gmail as
+  Owner. The original active/default organization choices were restored and read
+  back from MySQL. The existing production recording count remains one.
+- Browser testing caught that Cap interprets organization icon URLs as S3 keys.
+  The final startup seeds the bundled logo bytes into the default private bucket;
+  the three seeded organization rows now hold the matching S3 keys. No custom
+  logo, recording object, or other organization was changed.
+- Both public login and signup return HTTP 200 with the 25/100 limits, trusted
+  domains, collaboration-only/operator-access disclosure, and revocation warning.
+  The public-user dashboard meter now counts all stored recordings, overrides
+  self-hosted Pro's inherited Unlimited label, and shows Unavailable on read
+  failure. Meter rendering was verified in tests, not a new public-account
+  browser session. Whitelisted Unlimited remains visible in Chrome.
+- All 162 focused tests across 15 files pass. Scoped Biome, diff checks, local
+  production build, and Railway image build pass. Database/backend scoped
+  typechecks pass. The web-focused check still reports 18 diagnostics in
+  untouched/shared modules; the full repository typecheck is not clean and the
+  upstream production build skips it.
+- The actual quota helpers also passed a real MySQL concurrency harness in a
+  disposable empty-schema database: parallel public signups at 99 admit exactly
+  one; parallel recordings at 24 admit exactly one despite earlier transaction
+  snapshots; whitelisted users bypass both limits; existing users can log in at
+  capacity; deleting a recording frees a slot. No synthetic users or recordings
+  were inserted into the production database. The disposable database was dropped.
+- Before migration, a restricted-permission transactional SQL backup was saved
+  outside the repository. Generated additive migration `0040` created only the
+  signup guard table; production journal row 41 was read back. No schema push,
+  dropped production columns, or recording data migration was used.
+- Google Cloud's shared `swyx-io-tools` consent screen was verified as External
+  and In production. Existing OAuth credentials/callbacks were not changed.
+- The temporary `cap-access-20260826` Railway SSH key was revoked after final
+  database verification. Existing recordings, media service, and workflow
+  databases were not redeployed. The source commits are pushed to fork `main`.
+
+No global private-recording dashboard, ban-management UI, new backup policy,
+fresh desktop capture, or Cognition-account OAuth completion is claimed here.
+
 ## Collaboration landing page and operator-access disclosure
 
 Application commit: `8a16223`.
