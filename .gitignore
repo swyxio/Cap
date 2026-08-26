@@ -36,8 +36,6 @@ outputs
 *.sln
 *.sw?
 .turbo
-bun.lock
-pnpm-lock.yaml
 .zed
 .output
 .vinxi

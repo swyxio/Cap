@@ -1,0 +1,43 @@
+FROM node:24-bookworm-slim AS builder
+RUN corepack enable
+WORKDIR /app
+COPY . .
+RUN pnpm install --frozen-lockfile --filter @cap/web...
+ENV NEXT_PUBLIC_DOCKER_BUILD=true \
+	NEXT_PUBLIC_WEB_URL=https://cap-web-production-d6ca.up.railway.app \
+	WEB_URL=https://cap-web-production-d6ca.up.railway.app \
+	NEXTAUTH_URL=https://cap-web-production-d6ca.up.railway.app \
+	NEXTAUTH_SECRET=build-only-not-a-runtime-secret \
+	DATABASE_URL=mysql://build:build@127.0.0.1:3306/build \
+	CAP_AWS_BUCKET=build \
+	CAP_AWS_REGION=auto \
+	WORKFLOW_TARGET_WORLD=@workflow/world-postgres \
+	NEXT_TELEMETRY_DISABLED=1
+RUN pnpm run build:web
+
+FROM node:24-bookworm-slim AS workflow
+WORKDIR /opt/cap-workflow
+COPY infra/railway/workflow/package.json infra/railway/workflow/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts --no-fund
+
+FROM node:24-bookworm-slim AS runner
+RUN apt-get update && apt-get install -y --no-install-recommends nginx ffmpeg tini ca-certificates \
+	&& rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=builder --chown=node:node /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=node:node /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=node:node /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=node:node /app/packages/database/migrations ./apps/web/migrations
+COPY --from=workflow /opt/cap-workflow /opt/cap-workflow
+RUN rm -rf /app/apps/web/node_modules/@workflow/world-postgres \
+	&& mkdir -p /app/apps/web/node_modules/@workflow \
+	&& ln -s /opt/cap-workflow/node_modules/@workflow/world-postgres /app/apps/web/node_modules/@workflow/world-postgres
+COPY infra/railway/nginx.conf /etc/nginx/nginx.conf
+COPY --chmod=755 infra/railway/start-web.sh /usr/local/bin/cap-start
+RUN cd /app/apps/web && node -e 'Promise.all([import("@workflow/world-postgres"), import("@workflow/world-postgres/cli")]).then(() => console.log("Workflow runtime and bootstrap imports verified"))'
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+USER node
+RUN nginx -t
+EXPOSE 8080
+ENTRYPOINT ["tini", "--"]
+CMD ["/usr/local/bin/cap-start"]

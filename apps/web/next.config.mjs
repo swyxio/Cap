@@ -18,7 +18,13 @@ const ffmpegTracingIncludes = [
 
 const nextConfig = {
 	reactStrictMode: true,
-	serverExternalPackages: ["ffmpeg-static", "prettier"],
+	serverExternalPackages: [
+		"ffmpeg-static",
+		"prettier",
+		"@workflow/world-postgres",
+		"graphile-worker",
+	],
+	outputFileTracingRoot: path.resolve("../.."),
 	outputFileTracingIncludes: {
 		"/.well-known/workflow/v1/step": ffmpegTracingIncludes,
 		"/api/tools/loom-download": ffmpegTracingIncludes,

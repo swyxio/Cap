@@ -1,0 +1,10 @@
+{
+	"name": "cap-workflow-runtime",
+	"private": true,
+	"dependencies": {
+		"@workflow/world-postgres": "4.3.0"
+	},
+	"overrides": {
+		"undici": "7.29.0"
+	}
+}

@@ -1,5 +1,5 @@
 [build]
-dockerfilePath = "apps/media-server/Dockerfile"
+dockerfilePath = "Dockerfile.standalone"
 
 [deploy]
 startCommand = "bun run src/index.ts"
