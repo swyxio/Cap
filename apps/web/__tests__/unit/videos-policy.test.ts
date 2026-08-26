@@ -6,7 +6,23 @@ import {
 	Video,
 } from "@cap/web-domain";
 import { Effect, Option } from "effect";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const instance = vi.hoisted(() => ({ enabled: false, isCap: "false" }));
+vi.mock("@cap/env", async (original) => ({
+	...(await original<typeof import("@cap/env")>()),
+	buildEnv: {
+		get NEXT_PUBLIC_IS_CAP() {
+			return instance.isCap;
+		},
+	},
+	serverEnv: () => ({ CAP_DOMAIN_ORGANIZATIONS_ENABLED: instance.enabled }),
+}));
+
+beforeEach(() => {
+	instance.enabled = false;
+	instance.isCap = "false";
+});
 
 const TEST_VIDEO_ID = "test-video-1" as Video.VideoId;
 const TEST_OWNER_ID = "owner-1" as User.UserId;
@@ -131,6 +147,65 @@ function makeUser(
 const noUser = Option.none<CurrentUser["Type"]>();
 
 describe("VideosPolicy.canView", () => {
+	describe("self-hosted instance operator read access", () => {
+		it.each(["shawnthe1@gmail.com", "SWYX@cognition.ai"])(
+			"allows %s to read another user's private recording",
+			async (email) => {
+				instance.enabled = true;
+				const deps = makeDeps({
+					video: makeVideo({ public: false }),
+					password: Option.some("protected"),
+					allowedEmailDomain: Option.some("unrelated.example"),
+				});
+				deps.spacesRepo.passwordsForVideo = () =>
+					Effect.die(new Error("Operator read should not query passwords"));
+				expect(await runCanView(deps, makeUser(email))).toBe("allowed");
+			},
+		);
+		it.each([
+			"swyx@ai.engineer",
+			"person@latent.space",
+			"person@smol.ai",
+			"other@cognition.ai",
+			"shawnthe1+alias@gmail.com",
+			"swyx@cognition.ai.attacker.example",
+		])("does not give operator access to %s", async (email) => {
+			instance.enabled = true;
+			expect(
+				await runCanView(
+					makeDeps({ video: makeVideo({ public: false }) }),
+					makeUser(email),
+				),
+			).toBe("denied");
+		});
+		it("does not grant anonymous access", async () => {
+			instance.enabled = true;
+			expect(
+				await runCanView(
+					makeDeps({ video: makeVideo({ public: false }) }),
+					noUser,
+				),
+			).toBe("denied");
+		});
+		it("does not enable the override on managed Cap", async () => {
+			instance.enabled = true;
+			instance.isCap = "true";
+			expect(
+				await runCanView(
+					makeDeps({ video: makeVideo({ public: false }) }),
+					makeUser("swyx@cognition.ai"),
+				),
+			).toBe("denied");
+		});
+		it("does not enable the override when instance organizations are disabled", async () => {
+			expect(
+				await runCanView(
+					makeDeps({ video: makeVideo({ public: false }) }),
+					makeUser("swyx@cognition.ai"),
+				),
+			).toBe("denied");
+		});
+	});
 	describe("owner access", () => {
 		it("allows the video owner regardless of restrictions", async () => {
 			const deps = makeDeps({

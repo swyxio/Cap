@@ -4,6 +4,10 @@ import { ImageUpload, Organisation, type User } from "@cap/web-domain";
 import { and, eq, sql } from "drizzle-orm";
 import type { MySql2Database } from "drizzle-orm/mysql2";
 import {
+	INSTANCE_ORGANIZATION_ADMIN_EMAIL,
+	INSTANCE_ORGANIZATION_OWNER_EMAIL,
+} from "./instance-operator.ts";
+import {
 	type OrganisationMemberRole,
 	organizationMembers,
 	organizations,
@@ -15,8 +19,10 @@ type OrganizationExecutor = Pick<
 	"select" | "insert" | "update"
 >;
 
-export const INSTANCE_ORGANIZATION_OWNER_EMAIL = "shawnthe1@gmail.com";
-export const INSTANCE_ORGANIZATION_ADMIN_EMAIL = "swyx@cognition.ai";
+export {
+	INSTANCE_ORGANIZATION_ADMIN_EMAIL,
+	INSTANCE_ORGANIZATION_OWNER_EMAIL,
+} from "./instance-operator.ts";
 
 export const INSTANCE_ORGANIZATIONS = [
 	{

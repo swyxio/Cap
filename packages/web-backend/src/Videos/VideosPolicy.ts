@@ -1,3 +1,5 @@
+import { isInstanceOperatorEmail } from "@cap/database/instance-operator";
+import { buildEnv, serverEnv } from "@cap/env";
 import { isEmailAllowedByRestriction } from "@cap/utils";
 import {
 	type DatabaseError,
@@ -61,6 +63,12 @@ export function buildCanView(
 			if (Option.isSome(user)) {
 				const userId = user.value.id;
 				if (userId === video.ownerId) return true;
+				if (
+					isInstanceOperatorEmail(user.value.email) &&
+					buildEnv.NEXT_PUBLIC_IS_CAP !== "true" &&
+					serverEnv().CAP_DOMAIN_ORGANIZATIONS_ENABLED
+				)
+					return true;
 			}
 
 			const spacePasswords = yield* spacesRepo.passwordsForVideo(video.id);

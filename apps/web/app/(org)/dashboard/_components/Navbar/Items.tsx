@@ -1,4 +1,5 @@
 "use client";
+import { isInstanceOperatorEmail } from "@cap/database/instance-operator";
 import { buildEnv } from "@cap/env";
 import {
 	Button,
@@ -26,7 +27,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import clsx from "clsx";
 import { motion } from "framer-motion";
-import { Check, ChevronDown, Plus } from "lucide-react";
+import { Check, ChevronDown, Eye, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -76,6 +77,18 @@ const AdminNavItems = ({ toggleMobileNav }: Props) => {
 		DEVELOPER_DASHBOARD_ALLOWED_EMAILS.includes(user.email);
 
 	const manageNavigation = [
+		...(buildEnv.NEXT_PUBLIC_IS_CAP !== "true" &&
+		isInstanceOperatorEmail(user.email)
+			? [
+					{
+						name: "God view",
+						href: "/dashboard/god",
+						matchChildren: true,
+						icon: <Eye className="size-5" />,
+						subNav: [],
+					},
+				]
+			: []),
 		{
 			name: "My Caps",
 			href: `/dashboard/caps`,

@@ -14,8 +14,8 @@ This checkout deploys Cap independently of Reclip. Upstream base:
 The public login and signup pages explain that this instance is approved by swyx
 only for collaboration with swyx. They disclose that swyx, as the server
 operator, can access every uploaded recording, including recordings marked
-private. This describes infrastructure access; it does not add cross-user
-dashboard access or change recording permissions. Both pages link the official
+private. The owner-only God view also provides read access across users, without
+granting edit/delete rights or changing sharing for other users. Both pages link the official
 Cap documentation and explain the desktop server URL and preconfigured storage.
 
 Use **Login with Google** or email-code login. Any `ai.engineer`, `latent.space`,
@@ -60,7 +60,32 @@ leave a recording row that the user can delete to free the slot.
 To whitelist an additional person, append their exact email to
 `CAP_ALLOWED_SIGNUP_DOMAINS` and deploy. This removes public quotas but does not
 add that person to a team organization. The warning is not a new ban-management
-UI; no cross-user dashboard or recording access override was added.
+UI; God view is read-only and does not add account suspension controls.
+
+## God view
+
+Open `https://cap.swyx.io/dashboard/god` or **God view** in the dashboard sidebar.
+Only the exact Gmail owner and `swyx@cognition.ai` may access it. Trusted domains
+and organization admin roles do not grant this privilege. The guard also requires
+this self-hosted instance's organization feature to be enabled; managed Cap is
+excluded.
+
+The view lists all recordings (including private recordings and screenshots),
+searchable by title/name/email and filterable by user, organization, and type,
+with 50 rows per page. Instance-wide account and recording totals, per-user quota
+usage, duration coverage, and zero-usage users remain visible. Missing durations
+are marked unavailable rather than estimated. Owner playback and download use
+Cap's normal video read policy; editing and deletion still require normal ownership.
+The owner read override applies to the existing protected media APIs as well.
+
+**Measure storage** performs an on-demand, read-only scan of the default Railway
+bucket. It counts stored object bytes (including originals, previews, and logos)
+and attributes prefixes to users. It is not watch-time analytics or provider
+billing. Custom buckets, Google Drive, and incomplete multipart uploads are
+excluded. Scans stop at 100 pages or a time budget; partial coverage and missing
+sizes are explicit lower bounds, and failures show unavailable. Nothing is
+automatically scanned, deleted, or changed. The page and each data/action entrypoint
+authorize on the server; no credentials or unrestricted row payloads reach clients.
 
 ## Domain routing
 
