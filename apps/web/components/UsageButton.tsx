@@ -20,6 +20,16 @@ export const UsageButton = memo(
 		const { sidebarCollapsed, shareableLinkUsage, setUpgradeModalOpen } =
 			useDashboardContext();
 
+		if (shareableLinkUsage?.kind === "stored") {
+			return (
+				<StoredRecordingsUsage
+					used={shareableLinkUsage.used}
+					limit={shareableLinkUsage.limit}
+					collapsed={sidebarCollapsed}
+				/>
+			);
+		}
+
 		if (subscribed) {
 			if (sidebarCollapsed) {
 				return (
@@ -127,6 +137,80 @@ export const UsageButton = memo(
 		);
 	},
 );
+
+const StoredRecordingsUsage = ({
+	used,
+	limit,
+	collapsed,
+}: {
+	used: number | null;
+	limit: number;
+	collapsed: boolean;
+}) => {
+	const usage = used === null ? `Unavailable / ${limit}` : `${used}/${limit}`;
+	const explanation =
+		"Recordings and screenshots count. Delete one to free a slot, or ask swyx to whitelist your account. This limit does not reset monthly.";
+	const atLimit = used !== null && used >= limit;
+
+	if (collapsed) {
+		return (
+			<Tooltip
+				position="right"
+				content={`Stored recordings: ${usage}. ${explanation}`}
+			>
+				<Link
+					href="/dashboard/caps"
+					aria-label={`Stored recordings: ${usage}`}
+					className="flex justify-center items-center mx-auto w-10 h-10 rounded-full bg-gray-3 text-gray-11"
+				>
+					<HardDrive className="size-4" />
+				</Link>
+			</Tooltip>
+		);
+	}
+
+	return (
+		<div className="p-3 w-full rounded-xl bg-gray-3">
+			<div className="flex justify-between items-center gap-2">
+				<span className="text-xs font-medium text-gray-11">
+					Stored recordings
+				</span>
+				<span
+					className={clsx(
+						"text-xs font-semibold tabular-nums",
+						atLimit ? "text-red-500" : "text-gray-12",
+					)}
+				>
+					{usage}
+				</span>
+			</div>
+			{used !== null && (
+				<div className="overflow-hidden mt-2.5 w-full h-1.5 rounded-full bg-gray-5">
+					<div
+						style={{ width: `${Math.min(100, (used / limit) * 100)}%` }}
+						className={clsx(
+							"h-full rounded-full",
+							atLimit ? "bg-red-500" : "bg-blue-500",
+						)}
+					/>
+				</div>
+			)}
+			{used === null && (
+				<p className="mt-2 text-[11px] leading-snug text-gray-10">
+					Usage could not be loaded. Your {limit}-recording limit still applies.
+				</p>
+			)}
+			{atLimit && (
+				<p className="mt-2 text-[11px] font-medium text-red-500">
+					Limit reached. Delete a recording before uploading another.
+				</p>
+			)}
+			<p className="mt-2 text-[11px] leading-snug text-gray-10">
+				{explanation}
+			</p>
+		</div>
+	);
+};
 
 const ShareableLinksMeter = ({
 	used,

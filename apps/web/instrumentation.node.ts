@@ -2,6 +2,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { setupInstanceOrganizations } from "@cap/database/instance-setup";
 import { migrateDb } from "@cap/database/migrate";
 import { buildEnv } from "@cap/env";
+import { setupInstanceLogos } from "./lib/instance-logos";
 
 export async function register() {
 	if (
@@ -28,6 +29,7 @@ export async function register() {
 		}
 	}
 
+	await setupInstanceLogos();
 	await setupInstanceOrganizations();
 
 	if (process.env.WORKFLOW_TARGET_WORLD === "@workflow/world-postgres") {

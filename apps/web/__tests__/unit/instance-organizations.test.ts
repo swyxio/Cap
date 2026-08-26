@@ -115,7 +115,7 @@ describe("instance organizations", () => {
 				id: organization.id,
 				name: organization.name,
 				ownerId,
-				iconUrl: `https://cap.swyx.io${organization.logoPath}`,
+				iconUrl: organization.logoPath.slice(1),
 			})),
 		);
 		expect(rows.organization_members).toHaveLength(3);

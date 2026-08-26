@@ -44,7 +44,9 @@ The Gmail account owns all three; `swyx@cognition.ai` gets admin membership in a
 three on sign-in. Domain members join only their matching organization. Other
 public accounts receive their own organization, not membership in these teams.
 Existing organization choices, videos, and playback restrictions are preserved.
-Official logos are served locally; provenance is in
+Official logos are bundled locally and seeded into the default private S3 bucket
+before organization setup at startup. Organization icons store S3 object keys,
+so Cap resolves them through its normal signed-image URLs. Provenance is in
 `apps/web/public/instance-logos/SOURCES.md`.
 
 Startup applies the additive `0040` signup-guard migration before idempotently

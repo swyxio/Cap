@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
 	migrateDb: vi.fn<() => Promise<void>>(),
 	setupInstanceOrganizations: vi.fn<() => Promise<void>>(),
+	setupInstanceLogos: vi.fn<() => Promise<void>>(),
 	delay: vi.fn<() => Promise<void>>(),
 	start: vi.fn<() => Promise<void>>(),
 	createWorld: vi.fn(),
@@ -19,6 +20,9 @@ vi.mock("@cap/database/instance-setup", () => ({
 	setupInstanceOrganizations: mocks.setupInstanceOrganizations,
 }));
 vi.mock("@cap/env", () => ({ buildEnv: mocks.buildEnv }));
+vi.mock("../../lib/instance-logos", () => ({
+	setupInstanceLogos: mocks.setupInstanceLogos,
+}));
 vi.mock("@workflow/world-postgres", () => ({
 	createWorld: mocks.createWorld,
 }));
@@ -36,6 +40,7 @@ describe("self-hosted server startup", () => {
 		mocks.buildEnv.NEXT_PUBLIC_DOCKER_BUILD = "true";
 		mocks.migrateDb.mockResolvedValue();
 		mocks.setupInstanceOrganizations.mockResolvedValue();
+		mocks.setupInstanceLogos.mockResolvedValue();
 		mocks.delay.mockResolvedValue();
 		mocks.start.mockResolvedValue();
 		mocks.createWorld.mockReturnValue({ start: mocks.start });
@@ -66,11 +71,23 @@ describe("self-hosted server startup", () => {
 		finishMigration();
 		await vi.waitFor(() => expect(mocks.start).toHaveBeenCalledOnce());
 		expect(mocks.setupInstanceOrganizations).toHaveBeenCalledOnce();
+		expect(mocks.setupInstanceLogos.mock.invocationCallOrder[0]).toBeLessThan(
+			mocks.setupInstanceOrganizations.mock.invocationCallOrder[0] ?? 0,
+		);
 		expect(mocks.setWorld).toHaveBeenCalledWith({ start: mocks.start });
 		expect(ready).not.toHaveBeenCalled();
 		finishStartup();
 		await startup;
 		expect(ready).toHaveBeenCalledOnce();
+	});
+
+	it("does not provision organizations or become ready if logo upload fails", async () => {
+		mocks.setupInstanceLogos.mockRejectedValue(
+			new Error("storage unavailable"),
+		);
+		await expect(register()).rejects.toThrow("storage unavailable");
+		expect(mocks.setupInstanceOrganizations).not.toHaveBeenCalled();
+		expect(mocks.createWorld).not.toHaveBeenCalled();
 	});
 
 	it("does not become ready if organization setup fails", async () => {
@@ -115,6 +132,7 @@ describe("self-hosted server startup", () => {
 		vi.stubEnv("NEXT_PHASE", "phase-production-build");
 		await register();
 		expect(mocks.migrateDb).not.toHaveBeenCalled();
+		expect(mocks.setupInstanceLogos).not.toHaveBeenCalled();
 		expect(mocks.createWorld).not.toHaveBeenCalled();
 	});
 

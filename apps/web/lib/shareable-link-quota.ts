@@ -1,9 +1,15 @@
 import "server-only";
 
 import { db } from "@cap/database";
+import {
+	getPublicVideoLimit,
+	isInstanceWhitelisted,
+} from "@cap/database/instance-policy";
 import { videos } from "@cap/database/schema";
+import { userIsPro } from "@cap/utils";
 import { type User, Video } from "@cap/web-domain";
 import { and, count, eq, gte, lt, or } from "drizzle-orm";
+import type { ShareableLinkUsage } from "@/app/(org)/dashboard/DashboardContext";
 
 const monthStartUtc = (reference: Date) =>
 	new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), 1));
@@ -68,4 +74,30 @@ export async function getShareableLinkUsage(userId: User.UserId): Promise<{
 		used: row?.used ?? 0,
 		limit: Video.FREE_PLAN_SHAREABLE_LINKS_PER_MONTH,
 	};
+}
+
+export async function getDashboardShareableLinkUsage(
+	user: { id: User.UserId; email: string } & NonNullable<
+		Parameters<typeof userIsPro>[0]
+	>,
+): Promise<ShareableLinkUsage | null> {
+	const limit = getPublicVideoLimit();
+	if (limit > 0 && !isInstanceWhitelisted(user.email)) {
+		try {
+			const [row] = await db()
+				.select({ used: count() })
+				.from(videos)
+				.where(eq(videos.ownerId, user.id));
+			return { kind: "stored", used: row?.used ?? null, limit };
+		} catch (error) {
+			console.error("Failed to load stored recording usage", error);
+			return { kind: "stored", used: null, limit };
+		}
+	}
+
+	if (userIsPro(user)) return null;
+	return getShareableLinkUsage(user.id).catch((error) => {
+		console.error("Failed to load shareable link usage", error);
+		return null;
+	});
 }

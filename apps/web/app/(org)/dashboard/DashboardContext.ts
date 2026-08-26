@@ -40,8 +40,12 @@ export type SharedContext = {
 	isDeveloperSection: boolean;
 	developerApps: DeveloperApp[] | null;
 	setDeveloperApps: (apps: DeveloperApp[] | null) => void;
-	shareableLinkUsage: { used: number; limit: number } | null;
+	shareableLinkUsage: ShareableLinkUsage | null;
 };
+
+export type ShareableLinkUsage =
+	| { kind?: "monthly"; used: number; limit: number }
+	| { kind: "stored"; used: number | null; limit: number };
 
 export type ITheme = "light" | "dark";
 export type SetThemeOptions = {

@@ -111,9 +111,7 @@ export async function ensureInstanceOrganizations(
 				id: organization.id,
 				name: organization.name,
 				ownerId: ownerUserId,
-				iconUrl: ImageUpload.ImageUrl.make(
-					new URL(organization.logoPath, serverEnv().WEB_URL).href,
-				),
+				iconUrl: ImageUpload.ImageKey.make(organization.logoPath.slice(1)),
 			})
 			.onDuplicateKeyUpdate({ set: { id: sql`${organizations.id}` } });
 
