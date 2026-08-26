@@ -1,5 +1,31 @@
 # Deployment verification — 2026-08-26
 
+## Collaboration landing page and operator-access disclosure
+
+Application commit: `8a16223`.
+Active web deployment: `67abf6cd-a6a0-4564-a56e-449327ce3003`.
+Image: `sha256:9dcdab99b1e3045158d2ebeb4d505a2edb480425cdd0ec0685ec3bf0c7f82a06`.
+
+- swyx reported that desktop recording worked and explicitly approved this
+  instance for work with swyx. This does not independently verify a desktop
+  capture-to-share-link workflow.
+- Login and signup now explain the purpose, approved audience, operator access
+  to all uploaded recordings (including private recordings), and official docs.
+- Both production routes return HTTP 200 with the new title, prominent access
+  notice, sign-in acknowledgment, and official resource links.
+- The Google icon now returns HTTP 200 with `image/svg+xml`, rather than a login
+  redirect. The route exception is exact, not a general static-path bypass.
+- All 32 focused tests passed: rendered login/signup context, the shared usage
+  notice, proxy routing, auth providers/signup allowlist, and safe redirects.
+- Scoped Biome checks, the local production build, and the Railway image build
+  passed. Railway reports the deployment healthy.
+- The existing authenticated Chrome session still opens the dashboard. Final
+  signed-out visual inspection was interrupted by concurrent browser use; live
+  signed-out content was verified through HTTP, not a final browser screenshot.
+- No credentials, storage configuration, database schema, account allowlist, or
+  recording permissions were changed. Earlier upload/recovery tests were not
+  repeated for this presentation-only release.
+
 ## Shared swyx.io Google OAuth
 
 Active web deployment: `da877343-a3d5-4727-b334-d60264750c03`.

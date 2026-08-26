@@ -11,6 +11,13 @@ This checkout deploys Cap independently of Reclip. Upstream base:
 
 ## Use
 
+The public login and signup pages explain that this instance is approved by swyx
+only for collaboration with swyx. They disclose that swyx, as the server
+operator, can access every uploaded recording, including recordings marked
+private. This describes infrastructure access; it does not add cross-user
+dashboard access or change recording permissions. Both pages link the official
+Cap documentation and explain the desktop server URL and preconfigured storage.
+
 Use **Login with Google** for `shawnthe1@gmail.com`, or an `ai.engineer` or
 `smol.ai` Google account. Only that exact Gmail address is allowlisted, not all
 Gmail accounts. Email-code login also remains available through the existing
