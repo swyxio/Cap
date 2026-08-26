@@ -56,6 +56,7 @@ export async function proxy(request: NextRequest) {
 	if (buildEnv.NEXT_PUBLIC_IS_CAP !== "true") {
 		if (
 			!(
+				path === "/google.svg" ||
 				path.startsWith("/s/") ||
 				path.startsWith("/c/") ||
 				path.startsWith("/cli/") ||

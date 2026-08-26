@@ -29,6 +29,7 @@ import { trackEvent } from "@/app/utils/analytics";
 import { usePublicEnv } from "@/utils/public-env";
 import { getEmailCodeCooldownSeconds, requestEmailCode } from "../auth-email";
 import { getSafeNextPath } from "../safe-next";
+import { SwyxUsageNotice } from "../swyx-auth-layout";
 
 const MotionInput = motion(Input);
 const MotionLogoBadge = motion(LogoBadge);
@@ -219,7 +220,7 @@ export function LoginForm() {
 				layout: { duration: 0.3, ease: "easeInOut" },
 				height: { duration: 0.3, ease: "easeInOut" },
 			}}
-			className="overflow-hidden relative w-[calc(100%-5%)] p-[28px] max-w-[432px] bg-gray-3 border border-gray-5 rounded-2xl"
+			className="overflow-hidden relative w-full p-6 sm:p-7 bg-gray-1 border border-gray-5 rounded-2xl"
 		>
 			<motion.div
 				layout="position"
@@ -245,19 +246,19 @@ export function LoginForm() {
 				layout="position"
 				className="flex flex-col justify-center items-center my-7 text-left"
 			>
-				<motion.h1
+				<motion.h2
 					key="title"
 					layout="position"
 					className="text-2xl font-semibold text-gray-12"
 				>
-					Sign in to Cap
-				</motion.h1>
+					Sign in to swyx’s Cap
+				</motion.h2>
 				<motion.p
 					key="subtitle"
 					layout="position"
 					className="text-[16px] text-gray-10"
 				>
-					Beautiful screen recordings, owned by you.
+					For approved collaborators.
 				</motion.p>
 			</motion.div>
 			<motion.div layout="position" className="flex flex-col space-y-3">
@@ -379,29 +380,7 @@ export function LoginForm() {
 								)}
 							</motion.div>
 						</AnimatePresence>
-						<motion.p
-							layout="position"
-							className="pt-3 text-xs text-center text-gray-9"
-						>
-							By typing your email and clicking continue, you acknowledge that
-							you have both read and agree to Cap's{" "}
-							<Link
-								href="/terms"
-								target="_blank"
-								className="text-xs font-semibold text-gray-12 hover:text-blue-300"
-							>
-								Terms of Service
-							</Link>{" "}
-							and{" "}
-							<Link
-								href="/privacy"
-								target="_blank"
-								className="text-xs font-semibold text-gray-12 hover:text-blue-300"
-							>
-								Privacy Policy
-							</Link>
-							.
-						</motion.p>
+						<SwyxUsageNotice />
 					</motion.div>
 				</Suspense>
 			</motion.div>
@@ -473,9 +452,9 @@ const NormalLogin = ({
 				<MotionInput
 					id={emailInputId}
 					name="email"
-					autoFocus
+					aria-label="Email address"
 					type="email"
-					placeholder={emailSent ? "" : "tim@apple.com"}
+					placeholder={emailSent ? "" : "you@your-work-domain.com"}
 					autoComplete="email"
 					required
 					value={email}
