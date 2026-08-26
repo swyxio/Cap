@@ -87,8 +87,11 @@ function createServerEnv() {
 				.string()
 				.optional()
 				.describe(
-					"Comma-separated signup allowlist of domains or exact email addresses. Email matching is case-insensitive and does not expand aliases.",
+					"Comma-separated trusted domains or exact emails. Exempt from public signup/video limits. Without public signup enabled, only these accounts may register.",
 				),
+			CAP_PUBLIC_SIGNUP_LIMIT: z.coerce.number().int().min(0).default(0),
+			CAP_PUBLIC_VIDEO_LIMIT: z.coerce.number().int().min(0).default(0),
+			CAP_DOMAIN_ORGANIZATIONS_ENABLED: boolString(false),
 
 			/// AI providers
 			ASSEMBLY_API_KEY: z.string().optional().describe("Audio transcription"),

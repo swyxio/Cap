@@ -5,6 +5,7 @@ import type { MySql2Database } from "drizzle-orm/mysql2";
 import type { Adapter } from "next-auth/adapters";
 import type Stripe from "stripe";
 import { nanoId } from "../helpers.ts";
+import { joinInstanceOrganizations } from "../instance-organizations.ts";
 import {
 	accounts,
 	organizationInvites,
@@ -14,6 +15,7 @@ import {
 	users,
 	verificationTokens,
 } from "../schema.ts";
+import { assertNewUserAllowed, lockInstanceSignups } from "../signup-limits.ts";
 
 type CreateUserData = Parameters<NonNullable<Adapter["createUser"]>>[0];
 type LinkAccountData = Parameters<NonNullable<Adapter["linkAccount"]>>[0];
@@ -74,6 +76,7 @@ export function DrizzleAdapter(db: MySql2Database): Adapter {
 			const normalizedEmail = userData.email.toLowerCase();
 			let userId = User.UserId.make(nanoId());
 			await db.transaction(async (tx) => {
+				await lockInstanceSignups(tx);
 				const [existingUser] = await tx
 					.select()
 					.from(users)
@@ -100,9 +103,14 @@ export function DrizzleAdapter(db: MySql2Database): Adapter {
 					if (Object.keys(userUpdate).length > 0) {
 						await tx.update(users).set(userUpdate).where(eq(users.id, userId));
 					}
+					await joinInstanceOrganizations(tx, {
+						id: userId,
+						email: normalizedEmail,
+					});
 
 					return;
 				}
+				await assertNewUserAllowed(tx, normalizedEmail);
 
 				const [pendingInvite] = await tx
 					.select({ id: organizationInvites.id })
@@ -123,6 +131,12 @@ export function DrizzleAdapter(db: MySql2Database): Adapter {
 					image: userData.image as ImageUpload.ImageUrlOrKey | null,
 					activeOrganizationId: Organisation.OrganisationId.make(""),
 				});
+				const domainOrganization = await joinInstanceOrganizations(
+					tx,
+					{ id: userId, email: normalizedEmail },
+					{ setDefaultOrganization: true },
+				);
+				if (domainOrganization) return;
 
 				if (pendingInvite) {
 					return;

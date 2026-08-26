@@ -13,8 +13,9 @@ import type { Provider } from "next-auth/providers/index";
 import WorkOSProvider from "next-auth/providers/workos";
 import { sendEmail } from "../emails/config.ts";
 import { db } from "../index.ts";
+import { joinInstanceOrganizations } from "../instance-organizations.ts";
 import { users } from "../schema.ts";
-import { isEmailAllowedForSignup } from "./domain-utils.ts";
+import { getSignupDenial } from "../signup-limits.ts";
 import { DrizzleAdapter } from "./drizzle-adapter.ts";
 
 export const maxDuration = 120;
@@ -68,6 +69,7 @@ export const authOptions = (): NextAuthOptions => {
 		},
 		pages: {
 			signIn: "/login",
+			error: "/login",
 		},
 		get providers() {
 			if (_providers) return _providers;
@@ -184,9 +186,6 @@ export const authOptions = (): NextAuthOptions => {
 		},
 		callbacks: {
 			async signIn({ user, email, credentials }) {
-				const allowedDomains = serverEnv().CAP_ALLOWED_SIGNUP_DOMAINS;
-				if (!allowedDomains) return true;
-
 				const rawEmail =
 					user?.email ||
 					(typeof email === "string"
@@ -194,22 +193,23 @@ export const authOptions = (): NextAuthOptions => {
 						: typeof credentials?.email === "string"
 							? credentials.email
 							: null);
-				if (!rawEmail || typeof rawEmail !== "string") return true;
-				const userEmail = rawEmail.toLowerCase();
-
-				const [existingUser] = await db()
-					.select()
-					.from(users)
-					.where(eq(users.email, userEmail))
-					.limit(1);
-
-				// Only apply domain restrictions for new users, existing ones can always sign in
+				if (!rawEmail || typeof rawEmail !== "string") return false;
+				const userEmail = rawEmail.trim().toLowerCase();
+				const denial = await getSignupDenial(db(), userEmail);
+				if (denial) return `/login?error=${denial}`;
 				if (
-					!existingUser &&
-					!isEmailAllowedForSignup(userEmail, allowedDomains)
+					!email?.verificationRequest &&
+					serverEnv().CAP_DOMAIN_ORGANIZATIONS_ENABLED
 				) {
-					console.warn(`Signup blocked for email domain: ${userEmail}`);
-					return false;
+					await db().transaction(async (tx) => {
+						const [existingUser] = await tx
+							.select()
+							.from(users)
+							.where(eq(users.email, userEmail))
+							.limit(1)
+							.for("update");
+						if (existingUser) await joinInstanceOrganizations(tx, existingUser);
+					});
 				}
 
 				return true;

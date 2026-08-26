@@ -904,7 +904,7 @@ describe("importFromLoom", () => {
 			],
 			error: undefined,
 		});
-		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+		expect(mockDb.transaction).toHaveBeenCalledTimes(2);
 		expect(valuesMock).toHaveBeenCalledWith(
 			expect.objectContaining({
 				name: "Sales Team",

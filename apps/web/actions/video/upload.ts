@@ -4,6 +4,10 @@ import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { nanoId } from "@cap/database/helpers";
 import { videos, videoUploads } from "@cap/database/schema";
+import {
+	insertVideoWithLimit,
+	VideoLimitError,
+} from "@cap/database/video-limits";
 import { serverEnv } from "@cap/env";
 import { userIsPro } from "@cap/utils";
 import { Storage as StorageService } from "@cap/web-backend";
@@ -227,7 +231,7 @@ export async function createVideoAndGetUploadUrl({
 			...(folderId ? { folderId } : {}),
 		};
 
-		await db().insert(videos).values(videoData);
+		await db().transaction((tx) => insertVideoWithLimit(tx, videoData));
 
 		if (supportsUploadProgress)
 			await db().insert(videoUploads).values({
@@ -244,6 +248,7 @@ export async function createVideoAndGetUploadUrl({
 			uploadTarget: upload,
 		};
 	} catch (error) {
+		if (error instanceof VideoLimitError) return { error: error.message };
 		console.error("Error creating video and getting upload URL:", error);
 		throw new Error(
 			error instanceof Error ? error.message : "Failed to create video",

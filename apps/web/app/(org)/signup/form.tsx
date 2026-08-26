@@ -186,7 +186,7 @@ export function SignupForm() {
 					layout="position"
 					className="text-[16px] text-gray-10"
 				>
-					For approved collaborators.
+					For working with swyx.
 				</motion.p>
 			</motion.div>
 			<motion.div layout="position" className="flex flex-col space-y-3">

@@ -70,6 +70,12 @@ async function uploadImageAsScreenshot(
 			screenshotContentType: contentType,
 		});
 
+		if ("error" in imageData) {
+			toast.error(imageData.error);
+			setUploadStatus(undefined);
+			return false;
+		}
+
 		setUploadStatus({
 			status: "uploadingVideo",
 			capId: imageData.id,
@@ -153,6 +159,12 @@ async function uploadVideoForServerProcessing(
 			folderId,
 			orgId,
 		});
+
+		if ("error" in videoData) {
+			toast.error(videoData.error);
+			setUploadStatus(undefined);
+			return false;
+		}
 
 		const uploadId = videoData.id;
 

@@ -1,11 +1,15 @@
 import crypto from "node:crypto";
 import { authOptions } from "@cap/database/auth/auth-options";
-import { isEmailAllowedForSignup } from "@cap/database/auth/domain-utils";
 import { hashPassword } from "@cap/database/crypto";
 import { sendEmail } from "@cap/database/emails/config";
 import { OTPEmail } from "@cap/database/emails/otp-email";
 import { nanoId } from "@cap/database/helpers";
 import * as Db from "@cap/database/schema";
+import { getSignupDenial } from "@cap/database/signup-limits";
+import {
+	insertVideoWithLimit,
+	VideoLimitError,
+} from "@cap/database/video-limits";
 import { serverEnv } from "@cap/env";
 import { userIsPro } from "@cap/utils";
 import {
@@ -366,7 +370,15 @@ const toMobileCapSummary = (
 const withMappedErrors = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
 	effect.pipe(
 		Effect.catchTags({
-			DatabaseError: () => Effect.fail(new HttpApiError.InternalServerError()),
+			DatabaseError: (error: unknown) =>
+				Effect.fail(
+					typeof error === "object" &&
+						error !== null &&
+						"cause" in error &&
+						error.cause instanceof VideoLimitError
+						? new HttpApiError.Forbidden()
+						: new HttpApiError.InternalServerError(),
+				),
 			NoSuchElementException: () => Effect.fail(new HttpApiError.NotFound()),
 			PolicyDenied: () => Effect.fail(new HttpApiError.Forbidden()),
 			S3Error: () => Effect.fail(new HttpApiError.InternalServerError()),
@@ -402,19 +414,9 @@ const ensureEmailSignInAllowed = Effect.fn("Mobile.ensureEmailSignInAllowed")(
 			return yield* Effect.fail(new HttpApiError.BadRequest());
 		}
 
-		const allowedDomains = serverEnv().CAP_ALLOWED_SIGNUP_DOMAINS;
-		if (!allowedDomains) return;
-
 		const database = yield* Database;
-		const [existingUser] = yield* database.use((db) =>
-			db
-				.select({ id: Db.users.id })
-				.from(Db.users)
-				.where(eq(Db.users.email, email))
-				.limit(1),
-		);
-
-		if (!existingUser && !isEmailAllowedForSignup(email, allowedDomains)) {
+		const denial = yield* database.use((db) => getSignupDenial(db, email));
+		if (denial) {
 			return yield* Effect.fail(new HttpApiError.Forbidden());
 		}
 	},
@@ -2374,7 +2376,7 @@ const importLoom = Effect.fn("Mobile.importLoom")(function* (
 					);
 			}
 
-			await tx.insert(Db.videos).values({
+			await insertVideoWithLimit(tx, {
 				id: videoId,
 				name:
 					download.videoName?.slice(0, 255) ??

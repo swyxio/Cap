@@ -98,7 +98,7 @@ describe("agent upload entitlement", () => {
 			uploadSource.indexOf("storage.getWritableAccessForUser"),
 		);
 		expect(entitlementCheck).toBeLessThan(
-			uploadSource.indexOf("tx.insert(Db.videos)"),
+			uploadSource.indexOf("insertVideoWithLimit(tx,"),
 		);
 	});
 

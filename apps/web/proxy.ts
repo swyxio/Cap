@@ -57,6 +57,9 @@ export async function proxy(request: NextRequest) {
 		if (
 			!(
 				path === "/google.svg" ||
+				path === "/instance-logos/aie.svg" ||
+				path === "/instance-logos/latent-space.png" ||
+				path === "/instance-logos/smol.svg" ||
 				path.startsWith("/s/") ||
 				path.startsWith("/c/") ||
 				path.startsWith("/cli/") ||

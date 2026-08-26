@@ -212,8 +212,11 @@ describe("agent API contract", () => {
 		expect(workflow.indexOf("await deleteCapObjects")).toBeLessThan(
 			workflow.indexOf("await deleteCapDatabase"),
 		);
+		expect(workflow.indexOf("await createDuplicate")).toBeLessThan(
+			workflow.indexOf("await copyCapObjects"),
+		);
 		expect(workflow.indexOf("await copyCapObjects")).toBeLessThan(
-			workflow.indexOf("await createDuplicate"),
+			workflow.indexOf("await completeDuplicate"),
 		);
 	});
 

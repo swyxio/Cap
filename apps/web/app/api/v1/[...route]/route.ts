@@ -10,6 +10,10 @@ import { sendEmail } from "@cap/database/emails/config";
 import { OrganizationInvite } from "@cap/database/emails/organization-invite";
 import { nanoId, nanoIdLong } from "@cap/database/helpers";
 import * as Db from "@cap/database/schema";
+import {
+	insertVideoWithLimit,
+	VideoLimitError,
+} from "@cap/database/video-limits";
 import { buildEnv, serverEnv } from "@cap/env";
 import {
 	STRIPE_DEVELOPER_CREDITS_PRODUCT_ID,
@@ -378,9 +382,17 @@ const withMappedErrors = <A, E, R>(
 ) =>
 	effect.pipe(
 		Effect.catchTags({
-			DatabaseError: () =>
+			DatabaseError: (error: unknown) =>
 				Effect.fail(
-					temporarilyUnavailable(requestId, "The Cap library is unavailable"),
+					typeof error === "object" &&
+						error !== null &&
+						"cause" in error &&
+						error.cause instanceof VideoLimitError
+						? forbidden(requestId, error.cause.message)
+						: temporarilyUnavailable(
+								requestId,
+								"The Cap library is unavailable",
+							),
 				),
 			NoSuchElementException: () => Effect.fail(notFound(requestId)),
 			PolicyDenied: () => Effect.fail(forbidden(requestId)),
@@ -2373,7 +2385,7 @@ const queueAgentLoomImport = Effect.fn("Agent.queueLoomImport")(
 								.limit(1);
 							if (!existingOperation) {
 								if (!existingImport) {
-									await tx.insert(Db.videos).values({
+									await insertVideoWithLimit(tx, {
 										id: videoId,
 										name:
 											download.videoName?.slice(0, 255) ??
@@ -6587,7 +6599,7 @@ const AgentManagementHandlersLive = HttpApiBuilder.group(
 							decodeReplay: Schema.decodeUnknownSync(AgentUploadMutationState),
 							execute: async (tx) => {
 								const now = new Date();
-								await tx.insert(Db.videos).values({
+								await insertVideoWithLimit(tx, {
 									id: videoId,
 									name: title,
 									ownerId: principal.id,

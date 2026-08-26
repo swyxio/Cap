@@ -7,6 +7,10 @@ import {
 	signedBaas,
 	users,
 } from "@cap/database/schema";
+import {
+	assertNewUserAllowed,
+	lockInstanceSignups,
+} from "@cap/database/signup-limits";
 import { serverEnv } from "@cap/env";
 import { stripe } from "@cap/utils";
 import { Organisation, User } from "@cap/web-domain";
@@ -172,16 +176,18 @@ async function createGuestUser(
 ): Promise<typeof users.$inferSelect> {
 	const userId = User.UserId.make(nanoId());
 
-	await db()
-		.insert(users)
-		.values({
+	await db().transaction(async (tx) => {
+		await lockInstanceSignups(tx);
+		await assertNewUserAllowed(tx, email);
+		await tx.insert(users).values({
 			id: userId,
-			email: email,
+			email: email.trim().toLowerCase(),
 			emailVerified: null,
 			name: null,
 			image: null,
 			activeOrganizationId: Organisation.OrganisationId.make(""),
 		});
+	});
 
 	const result = await db()
 		.select()

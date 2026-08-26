@@ -14,6 +14,10 @@ import {
 	videos,
 	videoUploads,
 } from "@cap/database/schema";
+import {
+	insertVideoWithLimit,
+	VideoLimitError,
+} from "@cap/database/video-limits";
 import { buildEnv, NODE_ENV, serverEnv } from "@cap/env";
 import { dub, userIsPro } from "@cap/utils";
 import { Storage } from "@cap/web-backend";
@@ -387,35 +391,41 @@ async function importLoomVideoForOwner({
 		videoName ||
 		`Loom Import - ${new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`;
 
-	await db()
-		.insert(videos)
-		.values({
-			id: videoId,
-			name,
-			ownerId,
-			orgId,
-			source: { type: "webMP4" as const },
-			bucket: Option.getOrNull(writable.bucketId),
-			storageIntegrationId: Option.getOrNull(writable.storageIntegrationId),
-			public: serverEnv().CAP_VIDEOS_DEFAULT_PUBLIC,
-			...(oembedMeta?.duration ? { duration: oembedMeta.duration } : {}),
-			...(oembedMeta?.width ? { width: oembedMeta.width } : {}),
-			...(oembedMeta?.height ? { height: oembedMeta.height } : {}),
+	try {
+		await db().transaction(async (tx) => {
+			await insertVideoWithLimit(tx, {
+				id: videoId,
+				name,
+				ownerId,
+				orgId,
+				source: { type: "webMP4" as const },
+				bucket: Option.getOrNull(writable.bucketId),
+				storageIntegrationId: Option.getOrNull(writable.storageIntegrationId),
+				public: serverEnv().CAP_VIDEOS_DEFAULT_PUBLIC,
+				...(oembedMeta?.duration ? { duration: oembedMeta.duration } : {}),
+				...(oembedMeta?.width ? { width: oembedMeta.width } : {}),
+				...(oembedMeta?.height ? { height: oembedMeta.height } : {}),
+			});
+
+			await tx.insert(videoUploads).values({
+				videoId,
+				phase: "uploading",
+				processingProgress: 0,
+				processingMessage: "Importing from Loom...",
+			});
+
+			await tx.insert(importedVideos).values({
+				id: videoId,
+				orgId,
+				source: "loom",
+				sourceId: loomVideoId,
+			});
 		});
-
-	await db().insert(videoUploads).values({
-		videoId,
-		phase: "uploading",
-		processingProgress: 0,
-		processingMessage: "Importing from Loom...",
-	});
-
-	await db().insert(importedVideos).values({
-		id: videoId,
-		orgId,
-		source: "loom",
-		sourceId: loomVideoId,
-	});
+	} catch (error) {
+		if (error instanceof VideoLimitError)
+			return { success: false, error: error.message };
+		throw error;
+	}
 
 	const rawFileKey = `${ownerId}/${videoId}/raw-upload.mp4`;
 

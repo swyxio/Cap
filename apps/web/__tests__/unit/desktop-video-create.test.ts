@@ -2,6 +2,13 @@ import { getCurrentUser } from "@cap/database/auth/session";
 import { Option } from "effect";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const instancePolicy = vi.hoisted(() => ({ limit: 0 }));
+
+vi.mock("@cap/database/instance-policy", () => ({
+	getPublicVideoLimit: () => instancePolicy.limit,
+	isInstanceWhitelisted: () => false,
+}));
+
 const schema = {
 	organizations: { table: "organizations" },
 	organizationMembers: { table: "organizationMembers" },
@@ -99,6 +106,7 @@ const effectLike = <T>(value: T) => ({
 });
 
 function resetMockDb() {
+	instancePolicy.limit = 0;
 	for (const key of Object.keys(mockDb)) {
 		const fn = mockDb[key as keyof typeof mockDb];
 		if (typeof fn?.mockClear === "function") {
@@ -197,7 +205,7 @@ describe("GET /create", () => {
 		const response = await app.request("https://cap.test/create");
 
 		expect(response.status).toBe(200);
-		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+		expect(mockDb.transaction).toHaveBeenCalledTimes(2);
 
 		const orgValues = insertedValues(schema.organizations) as
 			| { id: string; ownerId: string; name: string }
@@ -246,7 +254,7 @@ describe("GET /create", () => {
 		const response = await app.request("https://cap.test/create");
 
 		expect(response.status).toBe(200);
-		expect(mockDb.transaction).not.toHaveBeenCalled();
+		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 
 		expect(insertedValues(schema.videos)).toMatchObject({
 			orgId: "org-1",
@@ -271,7 +279,7 @@ describe("GET /create", () => {
 		const response = await app.request("https://cap.test/create");
 
 		expect(response.status).toBe(200);
-		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+		expect(mockDb.transaction).toHaveBeenCalledTimes(2);
 
 		const orgValues = insertedValues(schema.organizations) as
 			| { id: string }
@@ -301,7 +309,7 @@ describe("GET /create", () => {
 		);
 
 		expect(response.status).toBe(200);
-		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+		expect(mockDb.transaction).toHaveBeenCalledTimes(2);
 
 		const orgValues = insertedValues(schema.organizations) as
 			| { id: string }
@@ -335,7 +343,7 @@ describe("GET /create", () => {
 		);
 
 		expect(response.status).toBe(200);
-		expect(mockDb.transaction).not.toHaveBeenCalled();
+		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 
 		expect(insertedValues(schema.videos)).toMatchObject({
 			orgId: "org-1",
@@ -362,7 +370,7 @@ describe("GET /create", () => {
 		const response = await app.request("https://cap.test/create?orgId=org-2");
 
 		expect(response.status).toBe(200);
-		expect(mockDb.transaction).not.toHaveBeenCalled();
+		expect(mockDb.transaction).toHaveBeenCalledTimes(1);
 
 		expect(insertedValues(schema.videos)).toMatchObject({
 			orgId: "org-2",
@@ -395,6 +403,37 @@ describe("GET /create", () => {
 			ownerId: "user-1",
 		});
 		expect(await response.json()).toMatchObject({ id: "0123456789abcde" });
+	});
+
+	it("returns an actionable 403 and creates no video when the public quota is full", async () => {
+		instancePolicy.limit = 25;
+		mockGetCurrentUser.mockResolvedValue({
+			id: "user-1",
+			email: "guest@example.com",
+			defaultOrgId: "org-1",
+			activeOrganizationId: "org-1",
+		});
+		mockDb.where
+			.mockResolvedValueOnce([
+				{ id: "org-1", name: "Acme", createdAt: new Date() },
+			])
+			.mockResolvedValueOnce([])
+			.mockReturnValueOnce(mockDb)
+			.mockReturnValueOnce(mockDb);
+		mockDb.limit.mockReturnValue(mockDb);
+		mockDb.for
+			.mockResolvedValueOnce([{ email: "guest@example.com" }])
+			.mockResolvedValueOnce(Array.from({ length: 25 }, (_, id) => ({ id })));
+
+		const response = await app.request("https://cap.test/create");
+
+		expect(response.status).toBe(403);
+		expect(await response.json()).toMatchObject({
+			error: "video_limit_reached",
+			limit: 25,
+			message: expect.stringContaining("Delete a recording or ask swyx"),
+		});
+		expect(mockDb.insert).not.toHaveBeenCalled();
 	});
 
 	it("rejects an invalid client-selected video ID", async () => {

@@ -11,6 +11,10 @@ import {
 	videoUploads,
 } from "@cap/database/schema";
 import type { VideoMetadata } from "@cap/database/types";
+import {
+	insertVideoWithLimit,
+	VideoLimitError,
+} from "@cap/database/video-limits";
 import { serverEnv } from "@cap/env";
 import { userIsPro } from "@cap/utils";
 import { Storage } from "@cap/web-backend";
@@ -305,9 +309,8 @@ app.get(
 				: Storage.getS3WritableAccessForUser(user.id, videoOrgId)
 			).pipe(runPromise);
 
-			await db()
-				.insert(videos)
-				.values({
+			await db().transaction((tx) =>
+				insertVideoWithLimit(tx, {
 					id: idToUse,
 					name: videoName,
 					ownerId: user.id,
@@ -329,7 +332,8 @@ app.get(
 					height,
 					fps,
 					...(metadata ? { metadata } : {}),
-				});
+				}),
+			);
 
 			const clientSupportsUploadProgress = isFromDesktopSemver(
 				c.req,
@@ -398,6 +402,11 @@ app.get(
 				aws_bucket: "n/a",
 			});
 		} catch (error) {
+			if (error instanceof VideoLimitError)
+				return c.json(
+					{ error: error.code, message: error.message, limit: error.limit },
+					{ status: 403 },
+				);
 			console.error("Error in video create endpoint:", error);
 			return c.json({ error: "Internal server error" }, { status: 500 });
 		}

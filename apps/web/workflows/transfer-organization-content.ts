@@ -1,5 +1,6 @@
 import { db } from "@cap/database";
 import * as Db from "@cap/database/schema";
+import { assertVideoCapacity } from "@cap/database/video-limits";
 import { Storage } from "@cap/web-backend/src/Storage/index";
 import {
 	Folder,
@@ -779,6 +780,10 @@ async function transferOneVideo(
 		}
 		if (sourceMembership && sourceMembership.folderId !== item.sourceFolderId) {
 			throw new FatalError(`Source placement changed for ${item.name}`);
+		}
+
+		if (lockedVideo.ownerId !== targetUserId) {
+			await assertVideoCapacity(tx, targetUserId);
 		}
 
 		await tx

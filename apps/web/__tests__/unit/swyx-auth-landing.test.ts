@@ -39,6 +39,10 @@ describe("swyx collaboration landing", () => {
 			expect(html).toContain('href="https://cap.so/docs/sharing/share-a-cap"');
 			expect(html).toContain('href="https://swyx.io/tools"');
 			expect(html).not.toContain("owned by you");
+			expect(html).toContain("25 stored videos per user");
+			expect(html).toContain("100 non-whitelisted accounts");
+			expect(html).toContain("your access can be revoked at any time");
+			expect(html).toContain("@latent.space");
 		},
 	);
 
@@ -47,5 +51,6 @@ describe("swyx collaboration landing", () => {
 		expect(html).toContain("By signing in");
 		expect(html).toContain("only for work with swyx");
 		expect(html).toContain("swyx can access every recording you upload here");
+		expect(html).toContain("swyx may revoke your access at any time");
 	});
 });

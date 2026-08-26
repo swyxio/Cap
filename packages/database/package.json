@@ -66,7 +66,12 @@
 		"./emails/config": "./emails/config.ts",
 		"./emails/*": "./emails/*.tsx",
 		"./types": "./types/index.ts",
-		"./migrate": "./migrate.ts"
+		"./migrate": "./migrate.ts",
+		"./instance-policy": "./instance-policy.ts",
+		"./signup-limits": "./signup-limits.ts",
+		"./video-limits": "./video-limits.ts",
+		"./instance-organizations": "./instance-organizations.ts",
+		"./instance-setup": "./instance-setup.ts"
 	},
 	"publishConfig": {
 		"exports": {
@@ -76,7 +81,12 @@
 			"./auth/session": "./dist/auth/session.js",
 			"./schema": "./dist/schema.js",
 			"./crypto": "./dist/crypto.js",
-			"./helpers": "./dist/helpers.js"
+			"./helpers": "./dist/helpers.js",
+			"./instance-policy": "./dist/instance-policy.js",
+			"./signup-limits": "./dist/signup-limits.js",
+			"./video-limits": "./dist/video-limits.js",
+			"./instance-organizations": "./dist/instance-organizations.js",
+			"./instance-setup": "./dist/instance-setup.js"
 		}
 	}
 }

@@ -1,5 +1,9 @@
 import { db } from "@cap/database";
 import * as Db from "@cap/database/schema";
+import {
+	insertVideoWithLimit,
+	VideoLimitError,
+} from "@cap/database/video-limits";
 import { Organisations } from "@cap/web-backend/src/Organisations/index";
 import { Storage } from "@cap/web-backend/src/Storage/index";
 import {
@@ -151,70 +155,85 @@ async function copyCapObjects(payload: OperationPayload) {
 	).pipe(runWorkflowPromise);
 }
 
-async function createDuplicate(operationId: string, payload: OperationPayload) {
+async function createDuplicate(payload: OperationPayload) {
 	"use step";
 
 	if (!payload.destinationId)
 		throw new FatalError("Duplicate destination missing");
 	const snapshot = payload.snapshot;
 	const destinationId = Video.VideoId.make(payload.destinationId);
-	await db().transaction(async (tx) => {
-		const [existing] = await tx
-			.select({ ownerId: Db.videos.ownerId })
-			.from(Db.videos)
-			.where(eq(Db.videos.id, destinationId))
-			.limit(1)
-			.for("update");
-		if (existing && existing.ownerId !== snapshot.ownerId) {
-			throw new FatalError("Duplicate destination conflicts with another Cap");
-		}
-		if (!existing) {
-			await tx.insert(Db.videos).values({
-				id: destinationId,
-				ownerId: User.UserId.make(snapshot.ownerId),
-				orgId: Organisation.OrganisationId.make(snapshot.orgId),
-				name: snapshot.name,
-				bucket: snapshot.bucket
-					? S3Bucket.S3BucketId.make(snapshot.bucket)
-					: null,
-				storageIntegrationId: snapshot.storageIntegrationId
-					? StorageDomain.StorageIntegrationId.make(
-							snapshot.storageIntegrationId,
-						)
-					: null,
-				duration: snapshot.duration,
-				width: snapshot.width,
-				height: snapshot.height,
-				fps: snapshot.fps,
-				metadata: snapshot.metadata,
-				public: snapshot.public,
-				settings: snapshot.settings,
-				transcriptionStatus: snapshot.transcriptionStatus as
-					| "PROCESSING"
-					| "COMPLETE"
-					| "ERROR"
-					| "SKIPPED"
-					| "NO_AUDIO"
-					| null,
-				source: snapshot.source,
-				folderId: snapshot.folderId
-					? Folder.FolderId.make(snapshot.folderId)
-					: null,
-				isScreenshot: snapshot.isScreenshot,
-				skipProcessing: snapshot.skipProcessing,
-			});
-		}
-		const now = new Date();
-		await tx
-			.update(Db.agentApiOperations)
-			.set({
-				state: "succeeded",
-				result: { id: destinationId },
-				updatedAt: now,
-				completedAt: now,
-			})
-			.where(eq(Db.agentApiOperations.id, operationId));
-	});
+	await db()
+		.transaction(async (tx) => {
+			const [existing] = await tx
+				.select({ ownerId: Db.videos.ownerId })
+				.from(Db.videos)
+				.where(eq(Db.videos.id, destinationId))
+				.limit(1)
+				.for("update");
+			if (existing && existing.ownerId !== snapshot.ownerId) {
+				throw new FatalError(
+					"Duplicate destination conflicts with another Cap",
+				);
+			}
+			if (!existing) {
+				await insertVideoWithLimit(tx, {
+					id: destinationId,
+					ownerId: User.UserId.make(snapshot.ownerId),
+					orgId: Organisation.OrganisationId.make(snapshot.orgId),
+					name: snapshot.name,
+					bucket: snapshot.bucket
+						? S3Bucket.S3BucketId.make(snapshot.bucket)
+						: null,
+					storageIntegrationId: snapshot.storageIntegrationId
+						? StorageDomain.StorageIntegrationId.make(
+								snapshot.storageIntegrationId,
+							)
+						: null,
+					duration: snapshot.duration,
+					width: snapshot.width,
+					height: snapshot.height,
+					fps: snapshot.fps,
+					metadata: snapshot.metadata,
+					public: snapshot.public,
+					settings: snapshot.settings,
+					transcriptionStatus: snapshot.transcriptionStatus as
+						| "PROCESSING"
+						| "COMPLETE"
+						| "ERROR"
+						| "SKIPPED"
+						| "NO_AUDIO"
+						| null,
+					source: snapshot.source,
+					folderId: snapshot.folderId
+						? Folder.FolderId.make(snapshot.folderId)
+						: null,
+					isScreenshot: snapshot.isScreenshot,
+					skipProcessing: snapshot.skipProcessing,
+				});
+			}
+		})
+		.catch((error: unknown) => {
+			if (error instanceof VideoLimitError) throw new FatalError(error.message);
+			throw error;
+		});
+}
+
+async function completeDuplicate(
+	operationId: string,
+	payload: OperationPayload,
+) {
+	"use step";
+
+	const now = new Date();
+	await db()
+		.update(Db.agentApiOperations)
+		.set({
+			state: "succeeded",
+			result: { id: payload.destinationId },
+			updatedAt: now,
+			completedAt: now,
+		})
+		.where(eq(Db.agentApiOperations.id, operationId));
 }
 
 async function deleteCapObjects(payload: OperationPayload) {
@@ -533,8 +552,9 @@ export async function agentCapOperationWorkflow(input: {
 		if (!operation) return;
 		if (operation.kind === "duplicate_cap") {
 			const payload = operation.payload as OperationPayload;
+			await createDuplicate(payload);
 			await copyCapObjects(payload);
-			await createDuplicate(input.operationId, payload);
+			await completeDuplicate(input.operationId, payload);
 			return;
 		}
 		if (operation.kind === "delete_cap") {

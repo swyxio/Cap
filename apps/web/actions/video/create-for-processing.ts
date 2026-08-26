@@ -3,7 +3,11 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { nanoId } from "@cap/database/helpers";
-import { videos, videoUploads } from "@cap/database/schema";
+import { videoUploads } from "@cap/database/schema";
+import {
+	insertVideoWithLimit,
+	VideoLimitError,
+} from "@cap/database/video-limits";
 import { serverEnv } from "@cap/env";
 import { userIsPro } from "@cap/utils";
 import { Storage as StorageService } from "@cap/web-backend";
@@ -40,7 +44,7 @@ export async function createVideoForServerProcessing({
 	resolution?: string;
 	folderId?: Folder.FolderId;
 	orgId: Organisation.OrganisationId;
-}): Promise<CreateForProcessingResult> {
+}): Promise<CreateForProcessingResult | { error: string }> {
 	const user = await getCurrentUser();
 
 	if (!user) throw new Error("Unauthorized");
@@ -86,27 +90,34 @@ export async function createVideoForServerProcessing({
 		orgId,
 	).pipe(runPromise);
 
-	await db()
-		.insert(videos)
-		.values({
-			id: videoId,
-			name: `Cap Upload - ${formattedDate}`,
-			ownerId: user.id,
-			orgId,
-			source: { type: "webMP4" as const },
-			bucket: Option.getOrNull(uploadResult.bucketId),
-			storageIntegrationId: Option.getOrNull(uploadResult.storageIntegrationId),
-			public: serverEnv().CAP_VIDEOS_DEFAULT_PUBLIC,
-			...(folderId ? { folderId } : {}),
-		});
+	try {
+		await db().transaction(async (tx) => {
+			await insertVideoWithLimit(tx, {
+				id: videoId,
+				name: `Cap Upload - ${formattedDate}`,
+				ownerId: user.id,
+				orgId,
+				source: { type: "webMP4" as const },
+				bucket: Option.getOrNull(uploadResult.bucketId),
+				storageIntegrationId: Option.getOrNull(
+					uploadResult.storageIntegrationId,
+				),
+				public: serverEnv().CAP_VIDEOS_DEFAULT_PUBLIC,
+				...(folderId ? { folderId } : {}),
+			});
 
-	await db().insert(videoUploads).values({
-		videoId,
-		mode: "singlepart",
-		phase: "uploading",
-		processingProgress: 0,
-		rawFileKey,
-	});
+			await tx.insert(videoUploads).values({
+				videoId,
+				mode: "singlepart",
+				phase: "uploading",
+				processingProgress: 0,
+				rawFileKey,
+			});
+		});
+	} catch (error) {
+		if (error instanceof VideoLimitError) return { error: error.message };
+		throw error;
+	}
 
 	revalidatePath("/dashboard/caps");
 	revalidatePath("/dashboard/folder");

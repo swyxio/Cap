@@ -75,6 +75,10 @@ const encryptedTextNullable = customType<{ data: string; notNull: false }>({
 	},
 });
 
+export const instanceSignupGuard = mysqlTable("instance_signup_guard", {
+	id: varchar("id", { length: 32 }).notNull().primaryKey(),
+});
+
 export const users = mysqlTable(
 	"users",
 	{

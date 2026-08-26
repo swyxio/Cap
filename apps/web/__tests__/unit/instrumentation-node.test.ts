@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
 	migrateDb: vi.fn<() => Promise<void>>(),
+	setupInstanceOrganizations: vi.fn<() => Promise<void>>(),
 	delay: vi.fn<() => Promise<void>>(),
 	start: vi.fn<() => Promise<void>>(),
 	createWorld: vi.fn(),
@@ -14,6 +15,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("node:timers/promises", () => ({ setTimeout: mocks.delay }));
 vi.mock("@cap/database/migrate", () => ({ migrateDb: mocks.migrateDb }));
+vi.mock("@cap/database/instance-setup", () => ({
+	setupInstanceOrganizations: mocks.setupInstanceOrganizations,
+}));
 vi.mock("@cap/env", () => ({ buildEnv: mocks.buildEnv }));
 vi.mock("@workflow/world-postgres", () => ({
 	createWorld: mocks.createWorld,
@@ -31,6 +35,7 @@ describe("self-hosted server startup", () => {
 		mocks.buildEnv.NEXT_PUBLIC_IS_CAP = "false";
 		mocks.buildEnv.NEXT_PUBLIC_DOCKER_BUILD = "true";
 		mocks.migrateDb.mockResolvedValue();
+		mocks.setupInstanceOrganizations.mockResolvedValue();
 		mocks.delay.mockResolvedValue();
 		mocks.start.mockResolvedValue();
 		mocks.createWorld.mockReturnValue({ start: mocks.start });
@@ -60,11 +65,20 @@ describe("self-hosted server startup", () => {
 		expect(mocks.createWorld).not.toHaveBeenCalled();
 		finishMigration();
 		await vi.waitFor(() => expect(mocks.start).toHaveBeenCalledOnce());
+		expect(mocks.setupInstanceOrganizations).toHaveBeenCalledOnce();
 		expect(mocks.setWorld).toHaveBeenCalledWith({ start: mocks.start });
 		expect(ready).not.toHaveBeenCalled();
 		finishStartup();
 		await startup;
 		expect(ready).toHaveBeenCalledOnce();
+	});
+
+	it("does not become ready if organization setup fails", async () => {
+		mocks.setupInstanceOrganizations.mockRejectedValue(
+			new Error("canonical owner missing"),
+		);
+		await expect(register()).rejects.toThrow("canonical owner missing");
+		expect(mocks.createWorld).not.toHaveBeenCalled();
 	});
 
 	it("retries transient migration failures before starting the worker", async () => {

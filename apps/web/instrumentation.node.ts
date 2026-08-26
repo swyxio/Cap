@@ -1,4 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
+import { setupInstanceOrganizations } from "@cap/database/instance-setup";
 import { migrateDb } from "@cap/database/migrate";
 import { buildEnv } from "@cap/env";
 
@@ -26,6 +27,8 @@ export async function register() {
 			}
 		}
 	}
+
+	await setupInstanceOrganizations();
 
 	if (process.env.WORKFLOW_TARGET_WORLD === "@workflow/world-postgres") {
 		if (!process.env.WORKFLOW_POSTGRES_URL) {

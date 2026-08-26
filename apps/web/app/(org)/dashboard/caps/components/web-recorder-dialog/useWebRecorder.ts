@@ -1269,6 +1269,9 @@ export const useWebRecorder = ({
 									orgId: Organisation.OrganisationId.make(orgId),
 								});
 
+								if ("error" in screenshotData)
+									throw new Error(screenshotData.error);
+
 								setUploadStatus({
 									status: "uploadingThumbnail",
 									capId: creationResult.id,

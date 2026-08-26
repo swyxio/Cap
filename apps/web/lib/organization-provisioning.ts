@@ -8,6 +8,10 @@ import {
 	organizations,
 	users,
 } from "@cap/database/schema";
+import {
+	assertNewUserAllowed,
+	lockInstanceSignups,
+} from "@cap/database/signup-limits";
 import { type Organisation, User } from "@cap/web-domain";
 import { and, eq } from "drizzle-orm";
 import {
@@ -40,6 +44,7 @@ export async function provisionOrganizationInvitee({
 	const normalizedEmail = email.trim().toLowerCase();
 
 	return db().transaction(async (tx) => {
+		await lockInstanceSignups(tx);
 		const [existingUser] = await tx
 			.select()
 			.from(users)
@@ -65,6 +70,7 @@ export async function provisionOrganizationInvitee({
 				await tx.update(users).set(userUpdate).where(eq(users.id, userId));
 			}
 		} else {
+			await assertNewUserAllowed(tx, normalizedEmail);
 			await tx.insert(users).values({
 				id: userId,
 				email: normalizedEmail,

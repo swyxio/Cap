@@ -25,7 +25,8 @@ export function SwyxUsageNotice() {
 	return (
 		<p className="pt-3 text-xs leading-relaxed text-center text-gray-11">
 			By signing in, you agree to use this instance only for work with swyx and
-			understand that swyx can access every recording you upload here.
+			understand that swyx can access every recording you upload here. If you
+			aren’t whitelisted, swyx may revoke your access at any time.
 		</p>
 	);
 }
@@ -102,10 +103,28 @@ export function SwyxAuthLayout({ children }: PropsWithChildren) {
 						className="min-w-0 scroll-mt-6"
 					>
 						{children}
-						<p className="px-2 mt-4 text-sm leading-relaxed text-center text-gray-11">
-							Access is limited to approved accounts. If your account isn’t
-							accepted, ask swyx to arrange access.
-						</p>
+						<div className="p-5 mt-4 rounded-xl border border-gray-5 text-sm leading-relaxed text-gray-11">
+							<h2 className="font-semibold text-gray-12">Who can join?</h2>
+							<p className="mt-2">
+								Anyone at @ai.engineer, @latent.space, or @smol.ai is
+								whitelisted and automatically joins AIE, Latent Space, or Smol
+								respectively. These accounts and swyx’s approved addresses are
+								exempt from the public limits.
+							</p>
+							<p className="mt-3">
+								Other collaborators can sign up while space is available:
+								<strong className="text-gray-12">
+									{" "}
+									25 stored videos per user, up to 100 non-whitelisted accounts.
+								</strong>{" "}
+								Delete a video to free a slot. Public signup does not grant
+								access to the three team organizations.
+							</p>
+							<p className="mt-3 font-semibold text-gray-12">
+								If you aren’t whitelisted by swyx, your access can be revoked at
+								any time. Keep your own copies of important recordings.
+							</p>
+						</div>
 					</section>
 				</div>
 				<footer className="grid gap-8 pt-8 mt-12 border-t border-gray-5 sm:grid-cols-2">
