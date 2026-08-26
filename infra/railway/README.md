@@ -11,10 +11,11 @@ This checkout deploys Cap independently of Reclip. Upstream base:
 
 ## Use
 
-Sign in with `shawnthe1@gmail.com`, or an `ai.engineer` or `smol.ai` email.
-Only that exact Gmail address is allowlisted, not all Gmail accounts. Codes come from
-`auth@smol.ai` through the existing verified Resend sender. There is no shared
-password. New recordings are private by default; sharing is an explicit choice.
+Use **Login with Google** for `shawnthe1@gmail.com`, or an `ai.engineer` or
+`smol.ai` Google account. Only that exact Gmail address is allowlisted, not all
+Gmail accounts. Email-code login also remains available through the existing
+verified `auth@smol.ai` Resend sender. There is no shared password. New recordings
+are private by default; sharing is an explicit choice.
 
 In Cap Desktop, open Settings → General → Self-host → Cap Server URL, set
 `https://cap.swyx.io`, then sign in to this instance.
@@ -36,7 +37,26 @@ no swyxdotio Worker release or unrelated website changes are needed.
 Both build-time and runtime `WEB_URL`, `NEXTAUTH_URL`, and
 `NEXT_PUBLIC_WEB_URL` use `https://cap.swyx.io`. The original Railway hostname is
 still available, but new desktop configurations should use the canonical origin.
-Gmail login uses an emailed code, not Google OAuth.
+
+## Google OAuth
+
+Cap reuses the existing **swyx.io Tools Web** OAuth client in Google Cloud project
+`swyx-io-tools`, rather than creating another app. Its existing credentials are
+configured as Railway `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`; neither
+secret was rotated. Cap's `NEXTAUTH_SECRET` remains independent of swyx.io.
+
+The client keeps its existing callback URLs and adds Cap's callback:
+
+```text
+https://swyx.io/tools/auth/google/callback
+http://localhost:4188/tools/auth/google/callback
+https://cap.swyx.io/api/auth/callback/google
+```
+
+The authorization request uses only basic Google profile/email scopes, not Gmail
+or Drive access. The same signup allowlist applies to Google and email login.
+The OAuth consent screen uses the shared swyx.io app branding. Future rotation
+of this shared client secret must update both services together.
 
 ## Services
 

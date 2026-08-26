@@ -1,5 +1,26 @@
 # Deployment verification — 2026-08-26
 
+## Shared swyx.io Google OAuth
+
+Active web deployment: `da877343-a3d5-4727-b334-d60264750c03`.
+Runtime image unchanged from the custom-domain cutover below; only the two Google
+OAuth environment variables were added.
+
+- Reused Google Cloud project `swyx-io-tools` and its existing **swyx.io Tools Web**
+  client. Exact client ID and secret matches were verified against the existing
+  local swyx.io credential file without printing secret values.
+- Added `https://cap.swyx.io/api/auth/callback/google`; saved-client readback
+  confirmed the existing swyx.io and localhost callbacks remain unchanged.
+- No OAuth client or secret was created, rotated, deleted, or disabled. Cap's
+  session-signing secret remains separate from swyx.io.
+- Railway reports the deployment healthy. Chrome displays **Login with Google**.
+- A real authorization request uses the shared client, the Cap callback, and
+  only `userinfo.email`/`userinfo.profile` scopes.
+- Chrome followed the Google login flow, selected `shawnthe1@gmail.com` under
+  the existing **swyx.io** app branding, and returned successfully to Cap's
+  authenticated dashboard. No email code was used for this flow.
+- The signup allowlist is unchanged. Email-code login remains available.
+
 ## Custom domain and Gmail cutover
 
 Application changes: `5256482a12778c42d6c6bdeb674441ef0edf31a7`.
