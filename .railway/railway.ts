@@ -44,7 +44,6 @@ export default defineRailway(() => {
 		deploy: {
 			limitOverride: { containers: { cpu: 2, memoryBytes: 2000000000 } },
 			restartPolicyType: "ALWAYS",
-			restartPolicyMaxRetries: 50,
 		},
 		env: {
 			MEDIA_SERVER_MAX_CONCURRENT_VIDEO_PROCESSES: preserve(),
@@ -63,7 +62,6 @@ export default defineRailway(() => {
 		replicas: { "us-west2": 1 },
 		deploy: {
 			limitOverride: { containers: { cpu: 2, memoryBytes: 2000000000 } },
-			restartPolicyType: "ON_FAILURE",
 			restartPolicyMaxRetries: 3,
 		},
 		domains: ["cap.swyx.io"],
