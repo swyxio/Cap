@@ -21,8 +21,7 @@ const nextConfig = {
 	serverExternalPackages: [
 		"ffmpeg-static",
 		"prettier",
-		"@workflow/world-postgres",
-		"graphile-worker",
+		"@fantasticfour/world-mysql",
 	],
 	outputFileTracingRoot: path.resolve("../.."),
 	outputFileTracingIncludes: {

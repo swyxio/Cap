@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
 	setupInstanceLogos: vi.fn<() => Promise<void>>(),
 	delay: vi.fn<() => Promise<void>>(),
 	start: vi.fn<() => Promise<void>>(),
+	stop: vi.fn(),
 	createWorld: vi.fn(),
 	setWorld: vi.fn(),
 	buildEnv: {
@@ -23,7 +24,7 @@ vi.mock("@cap/env", () => ({ buildEnv: mocks.buildEnv }));
 vi.mock("../../lib/instance-logos", () => ({
 	setupInstanceLogos: mocks.setupInstanceLogos,
 }));
-vi.mock("@workflow/world-postgres", () => ({
+vi.mock("@fantasticfour/world-mysql", () => ({
 	createWorld: mocks.createWorld,
 }));
 vi.mock("workflow/runtime", () => ({ setWorld: mocks.setWorld }));
@@ -34,8 +35,8 @@ describe("self-hosted server startup", () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
 		vi.stubEnv("NEXT_PHASE", "phase-production-server");
-		vi.stubEnv("WORKFLOW_TARGET_WORLD", "@workflow/world-postgres");
-		vi.stubEnv("WORKFLOW_POSTGRES_URL", "postgres://localhost/cap-workflows");
+		vi.stubEnv("WORKFLOW_TARGET_WORLD", "@fantasticfour/world-mysql");
+		vi.stubEnv("DATABASE_URL", "mysql://localhost/cap");
 		mocks.buildEnv.NEXT_PUBLIC_IS_CAP = "false";
 		mocks.buildEnv.NEXT_PUBLIC_DOCKER_BUILD = "true";
 		mocks.migrateDb.mockResolvedValue();
@@ -43,7 +44,7 @@ describe("self-hosted server startup", () => {
 		mocks.setupInstanceLogos.mockResolvedValue();
 		mocks.delay.mockResolvedValue();
 		mocks.start.mockResolvedValue();
-		mocks.createWorld.mockReturnValue({ start: mocks.start });
+		mocks.createWorld.mockReturnValue({ start: mocks.start, stop: mocks.stop });
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		vi.spyOn(console, "error").mockImplementation(() => {});
 	});
@@ -70,11 +71,23 @@ describe("self-hosted server startup", () => {
 		expect(mocks.createWorld).not.toHaveBeenCalled();
 		finishMigration();
 		await vi.waitFor(() => expect(mocks.start).toHaveBeenCalledOnce());
+		expect(mocks.createWorld).toHaveBeenCalledWith({
+			databaseUrl: "mysql://localhost/cap",
+			connectionLimit: 9,
+			queue: {
+				baseUrl: "http://127.0.0.1:3000",
+				concurrency: 2,
+				pollIntervalMs: 250,
+			},
+		});
 		expect(mocks.setupInstanceOrganizations).toHaveBeenCalledOnce();
 		expect(mocks.setupInstanceLogos.mock.invocationCallOrder[0]).toBeLessThan(
 			mocks.setupInstanceOrganizations.mock.invocationCallOrder[0] ?? 0,
 		);
-		expect(mocks.setWorld).toHaveBeenCalledWith({ start: mocks.start });
+		expect(mocks.setWorld).toHaveBeenCalledWith({
+			start: mocks.start,
+			stop: mocks.stop,
+		});
 		expect(ready).not.toHaveBeenCalled();
 		finishStartup();
 		await startup;
@@ -121,10 +134,8 @@ describe("self-hosted server startup", () => {
 	});
 
 	it("requires the explicit workflow database URL", async () => {
-		vi.stubEnv("WORKFLOW_POSTGRES_URL", "");
-		await expect(register()).rejects.toThrow(
-			"WORKFLOW_POSTGRES_URL is required",
-		);
+		vi.stubEnv("DATABASE_URL", "");
+		await expect(register()).rejects.toThrow("DATABASE_URL is required");
 		expect(mocks.createWorld).not.toHaveBeenCalled();
 	});
 
@@ -143,7 +154,7 @@ describe("self-hosted server startup", () => {
 		expect(mocks.createWorld).not.toHaveBeenCalled();
 	});
 
-	it("does not start Postgres when another world is configured", async () => {
+	it("does not start MySQL when another world is configured", async () => {
 		vi.stubEnv("WORKFLOW_TARGET_WORLD", "local");
 		await register();
 		expect(mocks.migrateDb).toHaveBeenCalledOnce();

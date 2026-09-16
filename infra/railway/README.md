@@ -130,13 +130,25 @@ of this shared client secret must update both services together.
 | --- | --- | --- |
 | cap-web | Next.js, API, workflow worker, nginx | HTTPS on port 8080 |
 | cap-media | Video processing and thumbnails, one concurrent process | Private port 3456 |
-| MySQL | Cap users, organizations, video metadata | Private only; persistent volume |
-| Postgres | Workflow SDK run/event/step state and Graphile queue | Private only; persistent volume |
+| MySQL | Cap users, organizations, video metadata, isolated `workflow` database | Private only; persistent volume |
+| Postgres | Retained recovery copy of pre-consolidation Workflow state; stopped after verified cutover | Private only; persistent volume |
 | recordings | Native Railway S3-compatible bucket, US West | Private objects; presigned client uploads/playback |
 
 The web process listens on loopback port 3000. nginx denies public access to
-`/.well-known/workflow/`; the Postgres worker invokes those handlers locally.
+`/.well-known/workflow/`; the MySQL worker invokes those handlers locally.
 Workflow persistence is not the media server's transient in-process job state.
+The MySQL World owns the separate `workflow` database on the existing MySQL
+service; application tables remain in `railway`. Setup applies the package's
+five ledgered migrations, with no application schema push or table replacement.
+The worker uses two consumers per queue, a nine-connection pool, and 250ms
+polling. Its default five-minute dispatch timeout and six-minute visibility
+lease allow orphaned jobs to be reclaimed after a process crash. Startup
+re-enqueues unfinished runs; SIGTERM/SIGINT stop new queue polling. Steps and
+streams persist in MySQL without Redis or QStash.
+A pinned dependency patch locks the wait-creation event before checking for
+completion, rejecting duplicate completions atomically. Without it, concurrent
+scheduled/recovery deliveries after restart wrote two `wait_completed` events
+and failed replay. Both pnpm and the isolated image runtime apply the same patch.
 
 Both databases have daily (6-day retention) and weekly (27-day retention) Railway
 volume backup schedules. These do **not** back up the recordings bucket. Native
@@ -153,11 +165,8 @@ Key settings:
 
 ```text
 DATABASE_URL=${{MySQL.MYSQL_URL}}
-WORKFLOW_TARGET_WORLD=@workflow/world-postgres
-WORKFLOW_POSTGRES_URL=${{Postgres.DATABASE_URL}}
+WORKFLOW_TARGET_WORLD=@fantasticfour/world-mysql
 WORKFLOW_LOCAL_BASE_URL=http://127.0.0.1:3000
-WORKFLOW_POSTGRES_WORKER_CONCURRENCY=2
-WORKFLOW_POSTGRES_MAX_POOL_SIZE=5
 MEDIA_SERVER_URL=http://${{cap-media.RAILWAY_PRIVATE_DOMAIN}}:3456
 MEDIA_SERVER_WEBHOOK_URL=http://${{cap-web.RAILWAY_PRIVATE_DOMAIN}}:8080
 MEDIA_SERVER_WEBHOOK_SECRET=${{cap-media.MEDIA_SERVER_WEBHOOK_SECRET}}
@@ -204,7 +213,7 @@ The web image bootstraps the workflow schema, runs Cap's MySQL migrations, then
 starts the worker and app. Failed migrations prevent startup. Bucket creation or
 public-policy modification is deliberately not part of startup.
 
-The pinned Postgres World runtime has a separate lockfile under `workflow/`:
+The pinned MySQL World 1.5.2 runtime has a separate lockfile under `workflow/`:
 Next's standalone tracing otherwise omitted transitive workflow dependencies.
 Image construction verifies both the runtime and bootstrap imports plus nginx
 configuration before publishing. The existing upstream build skips typechecking;
@@ -219,3 +228,32 @@ https://github.com/vercel/next.js/issues/96619.
 `origin` points to the deployment fork; `upstream` points to CapSoftware/Cap.
 No deployment secrets should be added to Git. GitHub pushes do not automatically
 deploy: releases currently use the explicit CLI upload commands above.
+
+## MySQL cutover and recovery
+
+Before changing the World, drain pending/running runs and executable Graphile
+jobs. Preserve a Postgres dump and volume snapshot, then transfer terminal
+run/event/step/hook history with binary and timestamp readback. This deployment
+has no unfinished historical waits or streams. An exhausted Graphile job remains
+in the recovery copy; it must not be replayed as new work.
+
+Validate an unfinished durable wait across a killed worker, retry handling,
+orphaned job recovery, and stream readback against pinned Workflow 4.6 before
+cutover. After deployment, verify a real generated media upload, signed-in
+dashboard, private playback, and public workflow-handler 404 responses. Recheck
+the old World for arrivals during deployment before stopping Postgres with
+`railway down --service Postgres --yes`. Keep its service and volume in the IaC
+graph: omitting either schedules deletion. A later deployment of Postgres can
+restart the retained recovery service.
+
+Recovery dumps are retained on the database volumes under
+`cap-consolidation-backups/`. The Postgres dump is
+`pre-mysql-2026-09-16.dump`; the application MySQL dump is
+`pre-workflow-2026-09-16.sql`. Railway snapshots provide another recovery copy.
+No Postgres volume or historical data is deleted by consolidation.
+
+Once new work has entered MySQL, roll back application code using a MySQL World
+release so its durable work remains attached. Switching back to a Postgres-only
+release requires a separately verified transfer or drain of new MySQL runs;
+redeploying the old image alone would strand them. Keep authentication and
+encryption variables unchanged.

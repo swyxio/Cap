@@ -11,14 +11,17 @@ ENV NEXT_PUBLIC_DOCKER_BUILD=true \
 	DATABASE_URL=mysql://build:build@127.0.0.1:3306/build \
 	CAP_AWS_BUCKET=build \
 	CAP_AWS_REGION=auto \
-	WORKFLOW_TARGET_WORLD=@workflow/world-postgres \
+	WORKFLOW_TARGET_WORLD=@fantasticfour/world-mysql \
 	NEXT_TELEMETRY_DISABLED=1
 RUN pnpm run build:web
 
 FROM node:24-bookworm-slim AS workflow
 WORKDIR /opt/cap-workflow
 COPY infra/railway/workflow/package.json infra/railway/workflow/package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts --no-fund
+COPY patches/@fantasticfour__world-mysql@1.5.2.patch ./world-mysql.patch
+RUN apt-get update && apt-get install -y --no-install-recommends patch \
+	&& npm ci --omit=dev --ignore-scripts --no-fund \
+	&& patch --batch --forward -p1 -d node_modules/@fantasticfour/world-mysql < world-mysql.patch
 
 FROM node:24-bookworm-slim AS runner
 RUN apt-get update && apt-get install -y --no-install-recommends nginx ffmpeg tini ca-certificates \
@@ -29,12 +32,12 @@ COPY --from=builder --chown=node:node /app/apps/web/.next/static ./apps/web/.nex
 COPY --from=builder --chown=node:node /app/apps/web/public ./apps/web/public
 COPY --from=builder --chown=node:node /app/packages/database/migrations ./apps/web/migrations
 COPY --from=workflow /opt/cap-workflow /opt/cap-workflow
-RUN rm -rf /app/apps/web/node_modules/@workflow/world-postgres \
-	&& mkdir -p /app/apps/web/node_modules/@workflow \
-	&& ln -s /opt/cap-workflow/node_modules/@workflow/world-postgres /app/apps/web/node_modules/@workflow/world-postgres
+RUN rm -rf /app/apps/web/node_modules/@fantasticfour/world-mysql \
+	&& mkdir -p /app/apps/web/node_modules/@fantasticfour \
+	&& ln -s /opt/cap-workflow/node_modules/@fantasticfour/world-mysql /app/apps/web/node_modules/@fantasticfour/world-mysql
 COPY infra/railway/nginx.conf /etc/nginx/nginx.conf
 COPY --chmod=755 infra/railway/start-web.sh /usr/local/bin/cap-start
-RUN cd /app/apps/web && node -e 'Promise.all([import("@workflow/world-postgres"), import("@workflow/world-postgres/cli")]).then(() => console.log("Workflow runtime and bootstrap imports verified"))'
+RUN cd /app/apps/web && node -e 'Promise.all([import("@fantasticfour/world-mysql"), import("@fantasticfour/world-mysql/cli")]).then(() => console.log("Workflow runtime and bootstrap imports verified"))'
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
 USER node
 RUN nginx -t

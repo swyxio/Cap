@@ -32,20 +32,28 @@ export async function register() {
 	await setupInstanceLogos();
 	await setupInstanceOrganizations();
 
-	if (process.env.WORKFLOW_TARGET_WORLD === "@workflow/world-postgres") {
-		if (!process.env.WORKFLOW_POSTGRES_URL) {
-			throw new Error(
-				"WORKFLOW_POSTGRES_URL is required for Postgres workflows",
-			);
+	if (process.env.WORKFLOW_TARGET_WORLD === "@fantasticfour/world-mysql") {
+		if (!process.env.DATABASE_URL) {
+			throw new Error("DATABASE_URL is required for MySQL workflows");
 		}
 
 		const [{ createWorld }, { setWorld }] = await Promise.all([
-			import("@workflow/world-postgres"),
+			import("@fantasticfour/world-mysql"),
 			import("workflow/runtime"),
 		]);
-		const world = createWorld();
+		const world = createWorld({
+			databaseUrl: process.env.DATABASE_URL,
+			connectionLimit: 9,
+			queue: {
+				baseUrl: process.env.WORKFLOW_LOCAL_BASE_URL ?? "http://127.0.0.1:3000",
+				concurrency: 2,
+				pollIntervalMs: 250,
+			},
+		});
 		setWorld(world);
 		await world.start();
-		console.log("Cap Postgres workflow worker started");
+		process.once("SIGTERM", () => world.stop());
+		process.once("SIGINT", () => world.stop());
+		console.log("Cap MySQL workflow worker started");
 	}
 }
