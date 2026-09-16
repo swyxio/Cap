@@ -95,10 +95,7 @@ export default defineRailway(() => {
 			S3_PUBLIC_ENDPOINT: preserve(),
 			WEB_URL: preserve(),
 			WORKFLOW_LOCAL_BASE_URL: preserve(),
-			WORKFLOW_POSTGRES_MAX_POOL_SIZE: preserve(),
-			WORKFLOW_POSTGRES_URL: preserve(),
-			WORKFLOW_POSTGRES_WORKER_CONCURRENCY: preserve(),
-			WORKFLOW_TARGET_WORLD: preserve(),
+			WORKFLOW_TARGET_WORLD: "@fantasticfour/world-mysql",
 		},
 	});
 

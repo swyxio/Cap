@@ -1,0 +1,17 @@
+diff --git a/dist/index.js b/dist/index.js
+index ea84fca64a76d9a29db6a8261be32ea3589648d3..a4bed623adf790c88b4e76b42a8b6a0c7243e01f 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1036,6 +1036,12 @@ function createEventsStorage(drizzle, options = {}) {
+ 					const [deleted] = await tx.delete(hooks).where(eq(hooks.hookId, data.correlationId));
+ 					if (deleted.affectedRows === 0) throw new EntityConflictError(`Hook "${data.correlationId}" already disposed`);
+ 				}
++				if (data.eventType === "wait_completed") {
++					const [wait] = await tx.select({ eventId: events$1.eventId }).from(events$1).where(and(eq(events$1.runId, effectiveRunId), eq(events$1.correlationId, data.correlationId), eq(events$1.eventType, "wait_created"))).limit(1).for("update");
++					if (!wait) throw new WorkflowWorldError(`Wait "${data.correlationId}" not found`, { status: 404 });
++					const [completed] = await tx.select({ eventId: events$1.eventId }).from(events$1).where(and(eq(events$1.runId, effectiveRunId), eq(events$1.correlationId, data.correlationId), eq(events$1.eventType, "wait_completed"))).limit(1).for("update");
++					if (completed) throw new EntityConflictError(`Wait "${data.correlationId}" already completed`);
++				}
+ 				const storedEventData = data.eventType === "run_started" ? void 0 : "eventData" in data ? data.eventData : void 0;
+ 				const eventRow = await insertEvent(tx, {
+ 					runId: effectiveRunId,

@@ -69,6 +69,9 @@
 			"allowedVersions": {
 				"next-auth>next": ">=16.0.0"
 			}
+		},
+		"patchedDependencies": {
+			"@fantasticfour/world-mysql@1.5.2": "patches/@fantasticfour__world-mysql@1.5.2.patch"
 		}
 	},
 	"packageManager": "pnpm@10.5.2",

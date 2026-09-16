@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd /app/apps/web
-node node_modules/@workflow/world-postgres/bin/setup.js
+node node_modules/@fantasticfour/world-mysql/bin/setup.js
 HOSTNAME=127.0.0.1 PORT=3000 node server.js &
 web_pid=$!
 nginx -g 'daemon off;' &
