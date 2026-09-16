@@ -192,6 +192,9 @@ From this directory's repository root:
 
 ```sh
 railway link --project 7a9607fb-97d3-4c18-a217-72c31e5c6a97 --environment production
+pnpm --dir .railway install --ignore-workspace --frozen-lockfile
+railway config plan
+railway config apply
 railway up --service cap-web --detach --json
 railway up apps/media-server --path-as-root --service cap-media --detach --json
 railway service list --json
