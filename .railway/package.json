@@ -1,0 +1,8 @@
+{
+	"name": "cap-railway-infrastructure",
+	"private": true,
+	"type": "module",
+	"devDependencies": {
+		"railway": "3.11.0"
+	}
+}
